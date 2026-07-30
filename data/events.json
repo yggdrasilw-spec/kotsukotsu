@@ -1,0 +1,99 @@
+{
+  "meta": {
+    "project": "kokotsu_forest",
+    "version": "0.1",
+    "notes": "112px基準の暫定正式版 events.json"
+  },
+  "events": [
+    {
+      "id": "event_05",
+      "progress": 5,
+      "title": "草が芽吹く",
+      "type": "visual",
+      "priority": 1,
+      "applyOnce": true,
+      "message": "森にやわらかい草が広がりはじめた",
+      "effect": "fadeIn"
+    },
+    {
+      "id": "event_10",
+      "progress": 10,
+      "title": "花が咲く",
+      "type": "visual",
+      "priority": 1,
+      "applyOnce": true,
+      "message": "花のスポットが使えるようになった",
+      "effect": "sparkle"
+    },
+    {
+      "id": "event_15",
+      "progress": 15,
+      "title": "木が育つ",
+      "type": "visual",
+      "priority": 1,
+      "applyOnce": true,
+      "message": "森の骨格になる木が増えた",
+      "effect": "grow"
+    },
+    {
+      "id": "event_25",
+      "progress": 25,
+      "title": "小道ができる",
+      "type": "system",
+      "priority": 1,
+      "applyOnce": true,
+      "message": "森の中を歩ける道が見えてきた",
+      "effect": "fadeIn"
+    },
+    {
+      "id": "event_30",
+      "progress": 30,
+      "title": "橋がかかる",
+      "type": "visual",
+      "priority": 1,
+      "applyOnce": true,
+      "message": "川や池の上に橋が現れた",
+      "effect": "sparkle"
+    },
+    {
+      "id": "event_50",
+      "progress": 50,
+      "title": "池が現れる",
+      "type": "visual",
+      "priority": 1,
+      "applyOnce": true,
+      "message": "森に水辺が生まれた",
+      "effect": "ripple"
+    },
+    {
+      "id": "event_60",
+      "progress": 60,
+      "title": "リスがあらわれる",
+      "type": "story",
+      "priority": 1,
+      "applyOnce": true,
+      "message": "森に小さな気配が増えてきた",
+      "effect": "bounce"
+    },
+    {
+      "id": "event_80",
+      "progress": 80,
+      "title": "虹が出る",
+      "type": "story",
+      "priority": 1,
+      "applyOnce": true,
+      "message": "特別な日には虹が見える",
+      "effect": "rainbow"
+    },
+    {
+      "id": "event_100",
+      "progress": 100,
+      "title": "森の完成",
+      "type": "story",
+      "priority": 1,
+      "applyOnce": true,
+      "message": "コツコツの森が完成した",
+      "effect": "rainbow"
+    }
+  ]
+}

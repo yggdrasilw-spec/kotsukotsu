@@ -1,0 +1,272 @@
+{
+  "meta": {
+    "project": "kokotsu_forest",
+    "version": "0.1"
+  },
+  "items": [
+    {
+      "id": "shop_flower_small_01",
+      "assetId": "flower_small_01",
+      "name": "小さな花",
+      "category": "flower",
+      "price": 20,
+      "unlockCondition": {
+        "progress": 10
+      },
+      "description": "1マス内に複数置ける小花"
+    },
+    {
+      "id": "shop_flower_patch_01",
+      "assetId": "flower_patch_01",
+      "name": "花のまとまり",
+      "category": "flower",
+      "price": 20,
+      "unlockCondition": {
+        "progress": 10
+      },
+      "description": "花のかたまり"
+    },
+    {
+      "id": "shop_mushroom_small_01",
+      "assetId": "mushroom_small_01",
+      "name": "小さなきのこ",
+      "category": "flower",
+      "price": 90,
+      "unlockCondition": {
+        "progress": 45
+      },
+      "description": "木陰に置く小きのこ"
+    },
+    {
+      "id": "shop_mushroom_patch_01",
+      "assetId": "mushroom_patch_01",
+      "name": "きのこの群れ",
+      "category": "flower",
+      "price": 90,
+      "unlockCondition": {
+        "progress": 45
+      },
+      "description": "複数のきのこがまとまった素材"
+    },
+    {
+      "id": "shop_tree_oak_01",
+      "assetId": "tree_oak_01",
+      "name": "どんぐりの木",
+      "category": "tree",
+      "price": 30,
+      "unlockCondition": {
+        "progress": 15
+      },
+      "description": "森の主役になる標準木"
+    },
+    {
+      "id": "shop_tree_birch_01",
+      "assetId": "tree_birch_01",
+      "name": "白い木",
+      "category": "tree",
+      "price": 130,
+      "unlockCondition": {
+        "progress": 65
+      },
+      "description": "明るい雰囲気の木"
+    },
+    {
+      "id": "shop_tree_pine_01",
+      "assetId": "tree_pine_01",
+      "name": "針葉樹",
+      "category": "tree",
+      "price": 130,
+      "unlockCondition": {
+        "progress": 65
+      },
+      "description": "大きな存在感のある木"
+    },
+    {
+      "id": "shop_rock_small_01",
+      "assetId": "rock_small_01",
+      "name": "小岩",
+      "category": "rock",
+      "price": 70,
+      "unlockCondition": {
+        "progress": 35
+      },
+      "description": "小さな岩"
+    },
+    {
+      "id": "shop_rock_medium_01",
+      "assetId": "rock_medium_01",
+      "name": "中岩",
+      "category": "rock",
+      "price": 70,
+      "unlockCondition": {
+        "progress": 35
+      },
+      "description": "森のアクセントになる岩"
+    },
+    {
+      "id": "shop_bird_small_01",
+      "assetId": "bird_small_01",
+      "name": "小鳥",
+      "category": "animal",
+      "price": 110,
+      "unlockCondition": {
+        "progress": 55
+      },
+      "description": "枝や空に現れる小鳥"
+    },
+    {
+      "id": "shop_squirrel_01",
+      "assetId": "squirrel_01",
+      "name": "リス",
+      "category": "animal",
+      "price": 120,
+      "unlockCondition": {
+        "progress": 60
+      },
+      "description": "森に現れるかわいいリス"
+    },
+    {
+      "id": "shop_rabbit_01",
+      "assetId": "rabbit_01",
+      "name": "うさぎ",
+      "category": "animal",
+      "price": 140,
+      "unlockCondition": {
+        "progress": 70
+      },
+      "description": "地面を跳ねるうさぎ"
+    },
+    {
+      "id": "shop_fish_small_01",
+      "assetId": "fish_small_01",
+      "name": "小魚",
+      "category": "animal",
+      "price": 100,
+      "unlockCondition": {
+        "progress": 50
+      },
+      "description": "池の中を泳ぐ小魚"
+    },
+    {
+      "id": "shop_frog_01",
+      "assetId": "frog_01",
+      "name": "カエル",
+      "category": "animal",
+      "price": 140,
+      "unlockCondition": {
+        "progress": 70
+      },
+      "description": "池の近くにいるカエル"
+    },
+    {
+      "id": "shop_acorn_01",
+      "assetId": "acorn_01",
+      "name": "どんぐり",
+      "category": "effect",
+      "price": 30,
+      "unlockCondition": {
+        "progress": 15
+      },
+      "description": "木の実"
+    },
+    {
+      "id": "shop_berry_01",
+      "assetId": "berry_01",
+      "name": "木の実",
+      "category": "effect",
+      "price": 30,
+      "unlockCondition": {
+        "progress": 15
+      },
+      "description": "小さな木の実"
+    },
+    {
+      "id": "shop_leaf_01",
+      "assetId": "leaf_01",
+      "name": "葉っぱ",
+      "category": "effect",
+      "price": 5,
+      "unlockCondition": {
+        "progress": 0
+      },
+      "description": "風で舞う葉っぱ"
+    },
+    {
+      "id": "shop_sparkle_small_01",
+      "assetId": "sparkle_small_01",
+      "name": "小さなきらめき",
+      "category": "effect",
+      "price": 5,
+      "unlockCondition": {
+        "progress": 0
+      },
+      "description": "小さな光の演出"
+    },
+    {
+      "id": "shop_glow_01",
+      "assetId": "glow_01",
+      "name": "光",
+      "category": "effect",
+      "price": 150,
+      "unlockCondition": {
+        "progress": 75
+      },
+      "description": "木漏れ日や光の演出"
+    },
+    {
+      "id": "shop_rainbow_01",
+      "assetId": "rainbow_01",
+      "name": "虹",
+      "category": "effect",
+      "price": 160,
+      "unlockCondition": {
+        "progress": 80
+      },
+      "description": "特別演出用の大きな虹"
+    },
+    {
+      "id": "shop_bee_01",
+      "assetId": "bee_01",
+      "name": "みつばち",
+      "category": "insect",
+      "price": 60,
+      "unlockCondition": {
+        "progress": 40
+      },
+      "description": "花畑に呼べるみつばち"
+    },
+    {
+      "id": "shop_butterfly_01",
+      "assetId": "butterfly_01",
+      "name": "ちょうちょ",
+      "category": "insect",
+      "price": 60,
+      "unlockCondition": {
+        "progress": 40
+      },
+      "description": "花畑に呼べるちょうちょ"
+    },
+    {
+      "id": "shop_dragonfly_01",
+      "assetId": "dragonfly_01",
+      "name": "とんぼ",
+      "category": "insect",
+      "price": 65,
+      "unlockCondition": {
+        "progress": 45
+      },
+      "description": "花畑に呼べるとんぼ"
+    },
+    {
+      "id": "shop_pinecone_01",
+      "assetId": "pinecone_01",
+      "name": "まつぼっくり",
+      "category": "seed",
+      "price": 20,
+      "unlockCondition": {
+        "progress": 15
+      },
+      "description": "森に置けるまつぼっくり"
+    }
+  ]
+}

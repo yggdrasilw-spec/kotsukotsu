@@ -1,0 +1,60 @@
+{
+  "meta": {
+    "project": "kokotsu_forest",
+    "version": "0.1"
+  },
+  "badges": [
+    {
+      "id": "badge_forest_01",
+      "name": "森の芽ばえ",
+      "condition": {
+        "progress": 10,
+        "completedEvents": [
+          "event_05",
+          "event_10"
+        ]
+      },
+      "reward": {
+        "points": 20,
+        "items": {
+          "acorn": 3
+        }
+      },
+      "description": "森が少し育った証"
+    },
+    {
+      "id": "badge_forest_02",
+      "name": "水辺の発見",
+      "condition": {
+        "progress": 50,
+        "completedEvents": [
+          "event_50"
+        ]
+      },
+      "reward": {
+        "points": 50,
+        "items": {
+          "berry": 5
+        }
+      },
+      "description": "池が見つかった証"
+    },
+    {
+      "id": "badge_forest_03",
+      "name": "森の完成",
+      "condition": {
+        "progress": 100,
+        "completedEvents": [
+          "event_100"
+        ]
+      },
+      "reward": {
+        "points": 100,
+        "items": {
+          "sparkle": 10
+        }
+      },
+      "description": "森を作りきった証"
+    }
+  ]
+}

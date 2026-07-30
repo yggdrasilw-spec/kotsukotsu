@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>コツコツの森</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand__title">コツコツの森</div>
+        <div class="brand__sub">森をコツコツ育てよう</div>
+      </div>
+      <div class="topbar__stats">
+        <span>クラス <strong id="progressValue">0</strong></span>
+        <span>所持 <strong id="personalValue">0</strong></span>
+        <span>季節 <strong id="seasonValue">spring</strong></span>
+        <span>拡大 <strong id="zoomValue">100%</strong></span>
+        <span>クラス連携 <strong id="classSyncStatus">未接続</strong></span>
+      </div>
+      <div class="topbar__actions">
+        <button id="btnClassSync" class="btn">クラス連携</button>
+        <button id="btnSave" class="btn">保存</button>
+        <button id="btnLoad" class="btn">読込</button>
+        <button id="btnExport" class="btn">書き出し</button>
+        <button id="btnReset" class="btn btn--danger">リセット</button>
+      </div>
+    </header>
+
+    <div class="main-layout">
+      <aside class="sidebar sidebar--left">
+        <section class="panel">
+          <h2>いまの状態</h2>
+          <div id="statusPanel" class="status-panel"></div>
+        </section>
+
+        <section class="panel">
+          <h2>今日の目標</h2>
+          <div id="goalPanel" class="goal-panel"></div>
+        </section>
+
+        <section class="panel">
+          <h2>ありがとう</h2>
+          <form id="thanksForm" class="goal-form">
+            <input type="text" id="thanksNameInput" placeholder="だれに送る？（例: ゆうきさん）" maxlength="20" required />
+            <button type="submit" class="btn">ありがとうを送る</button>
+          </form>
+          <div class="button-stack">
+            <button id="btnPreviewThanks" class="btn btn--ghost">（テスト用）ありがとうを受け取ってみる</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>先生用: 承認待ち</h2>
+          <div id="approvalPanel" class="goal-panel"></div>
+          <div class="button-stack">
+            <label class="status-chip">
+              <input type="checkbox" id="chkTeacherMode" /> 先生承認制にする
+            </label>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>操作</h2>
+          <div class="button-stack">
+            <button id="btnZoomIn" class="btn">ズーム＋</button>
+            <button id="btnZoomOut" class="btn">ズーム−</button>
+            <button id="btnCenter" class="btn">中央へ</button>
+            <button id="btnAddPoints" class="btn">（テスト用）10ポイント追加</button>
+            <button id="btnSpawnBird" class="btn">小鳥を出す</button>
+            <button id="btnSpawnSquirrel" class="btn">小動物を出す</button>
+            <button id="btnSpawnInsect" class="btn">虫を出す</button>
+            <div class="status-chip">現在モード: <strong id="spotModeValue">移動</strong></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>表示</h2>
+          <div class="button-stack">
+            <button id="btnToggleGrid" class="btn">グリッド切替</button>
+            <button id="btnToggleSpots" class="btn">スポット切替</button>
+          </div>
+        </section>
+      </aside>
+
+      <main class="center-stage">
+        <div id="appMessage" class="app-message">森を読み込み中…</div>
+        <div id="forestViewport" class="forest-viewport">
+          <div id="forestWorld" class="forest-world">
+            <div id="layerTerrain" class="forest-layer forest-layer--terrain"></div>
+            <div id="layerAssets" class="forest-layer forest-layer--assets"></div>
+            <div id="layerAnimals" class="forest-layer forest-layer--animals"></div>
+            <div id="layerDebug" class="forest-layer forest-layer--debug"></div>
+          </div>
+          <div id="seasonOverlay" class="season-overlay" data-season="spring"></div>
+          <div id="effectOverlay" class="effect-overlay"></div>
+        </div>
+      </main>
+
+      <aside class="sidebar sidebar--right">
+        <section class="panel">
+          <h2>選択中</h2>
+          <div class="selected-asset">
+            <div id="selectedAssetName" class="selected-asset__name">未選択</div>
+            <div id="selectedAssetMeta" class="selected-asset__meta">—</div>
+            <div class="selected-asset__hint">アイテムを押してから、森をクリックして配置。</div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>バッジ</h2>
+          <div id="badgePanel" class="badge-panel"></div>
+        </section>
+
+        <section class="panel">
+          <h2>季節</h2>
+          <div class="button-grid">
+            <button id="btnSeasonSpring" class="btn">春</button>
+            <button id="btnSeasonSummer" class="btn">夏</button>
+            <button id="btnSeasonAutumn" class="btn">秋</button>
+            <button id="btnSeasonWinter" class="btn">冬</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>所持・配置</h2>
+          <div class="mini-stats">
+            <div>所持 <strong id="ownedCount">0</strong></div>
+            <div>配置 <strong id="placedCount">0</strong></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>アセット</h2>
+          <div id="assetPalette" class="asset-palette"></div>
+        </section>
+
+        <section class="panel">
+          <h2>ショップ</h2>
+          <div id="shopPanel" class="shop-panel"></div>
+        </section>
+
+        <section class="panel">
+          <h2>ログ</h2>
+          <div id="eventLog" class="event-log"></div>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
