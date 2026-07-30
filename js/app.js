@@ -627,6 +627,12 @@ async function bootstrap() {
   setInterval(() => {
     core.persist();
   }, 15000);
+
+  // 起動が成功したので「森を読み込み中…」の表示を消す
+  const appMessageEl = byId('appMessage');
+  if (appMessageEl) {
+    appMessageEl.remove();
+  }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
