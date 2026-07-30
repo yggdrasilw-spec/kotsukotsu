@@ -327,6 +327,7 @@ async function bootstrap() {
   }
 
   function loadNow() {
+    if (demoTimer) stopDemo();
     const loaded = core.saveManager.load();
     core.state = loaded;
     core.animals.hydrate(loaded.animals);
@@ -354,6 +355,7 @@ async function bootstrap() {
 
   function resetNow() {
     if (!window.confirm('森の保存データをリセットしますか？')) return;
+    if (demoTimer) stopDemo();
     core.reset();
     camera.zoom = 1;
     camera.centerOnCell(map.width / 2, map.height / 2);
@@ -390,6 +392,60 @@ async function bootstrap() {
     core.addPoints(10);
     refresh();
     toast('（テスト用）10ポイント追加');
+  });
+
+  // ---- デモ再生 ----
+  // 「ポイントが自動で少しずつ増えて、イベント/バッジ/カテゴリ解放が
+  // 順番に進んでいく様子」を、実際の操作をしなくても見られるようにする機能。
+  // 既存の core.addPoints() → refresh() → announceMilestones() の流れをそのまま使うので、
+  // トースト表示・演出(playEffect)・動物自動出現なども通常プレイと同じ形で発火する。
+  const DEMO_TICK_MS = 900;
+  const DEMO_TARGET_POINTS = 120; // event_100(森の完成)を確実に超える値
+  const DEMO_MAX_TICKS = 80; // 万一ポイントが伸びない場合の保険の打ち切り
+  let demoTimer = null;
+  let demoTick = 0;
+
+  function setDemoButtonState(isRunning) {
+    const btn = byId('btnDemoPlay');
+    if (!btn) return;
+    btn.textContent = isRunning ? '⏹ デモ停止' : '🎬 デモ再生';
+    btn.classList.toggle('is-active', isRunning);
+  }
+
+  function stopDemo(message) {
+    if (demoTimer) {
+      clearInterval(demoTimer);
+      demoTimer = null;
+    }
+    demoTick = 0;
+    setDemoButtonState(false);
+    if (message) toast(message);
+  }
+
+  function startDemo() {
+    if (demoTimer) return;
+    demoTick = 0;
+    setDemoButtonState(true);
+    toast('🎬 デモ再生を開始します（森が育っていく様子を自動で流します）');
+    demoTimer = setInterval(() => {
+      demoTick += 1;
+      // 最初は控えめに、だんだん一度に増える量が大きくなっていく(2→最大14)。
+      const amount = Math.min(14, 2 + Math.floor(demoTick / 3));
+      core.addPoints(amount);
+      refresh();
+      const classPoints = core.getState().classPoints || 0;
+      if (classPoints >= DEMO_TARGET_POINTS || demoTick >= DEMO_MAX_TICKS) {
+        stopDemo('🌳 デモ再生が完了しました（森の成長イベントを最後まで再生しました）');
+      }
+    }, DEMO_TICK_MS);
+  }
+
+  bindButton('btnDemoPlay', () => {
+    if (demoTimer) {
+      stopDemo('デモ再生を停止しました');
+    } else {
+      startDemo();
+    }
   });
   bindButton('btnSpawnBird', () => {
     const result = core.spawnAnimal('bird', 2);
