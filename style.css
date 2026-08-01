@@ -585,6 +585,18 @@ select:focus-visible {
   opacity: 1;
   transform: translate(-50%, -50%) scale(1);
 }
+/* window.confirm()の代わりに使う、アプリ内の確認モーダル */
+.confirm-card__message {
+  margin: 4px 0 18px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text);
+}
+.confirm-card__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
 .placed-info-card__close {
   position: absolute;
   top: 8px;

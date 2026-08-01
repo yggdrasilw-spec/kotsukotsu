@@ -150,7 +150,16 @@ async function bootstrap() {
   const map = bundle.map;
   const events = bundle.events || [];
   const badges = bundle.badges || [];
-  const shopItems = bundle.shopItems.length ? bundle.shopItems : createShopItemsFromAssets(assets);
+  // ショップも右カラム(パレット)と同じ基準(assets.jsonのplaceable)で絞り込む。
+  // 「木」「岩」のような、進行度で自動配置される大物は児童が選んで置くものではないため、
+  // data/shop.jsonに項目が残っていてもショップには出さない(v24でパレット側は対応済みだったが、
+  // ショップ側は別経路だったため漏れていた)。
+  const assetById = new Map(assets.map((asset) => [asset.id, asset]));
+  const shopItemsRaw = bundle.shopItems.length ? bundle.shopItems : createShopItemsFromAssets(assets);
+  const shopItems = shopItemsRaw.filter((item) => {
+    const asset = assetById.get(item.assetId);
+    return !asset || asset.placeable !== false;
+  });
 
   const core = createForestCoreFromData({ assets, spots, shopItems, storageKey: CONFIG.storageKey });
   core.setAssets(assets);
@@ -486,6 +495,38 @@ async function bootstrap() {
     if (!host) return;
     host.classList.remove('is-visible');
     window.setTimeout(() => { host.style.display = 'none'; }, 220);
+  }
+
+  // window.confirm()は、環境によって(タブレットの管理者設定・アプリ内ブラウザ等)
+  // ダイアログ自体が出ずに即false扱いになることがあり、その場合「ボタンを押しても
+  // 何も起きない」ように見えてしまう。ブラウザ標準ダイアログに頼らず、アプリ内の
+  // カード(#confirmHost)で同じ役割を果たす。Promise<boolean>を返すのでawaitして使う。
+  function showConfirm(message) {
+    return new Promise((resolve) => {
+      const host = byId('confirmHost');
+      if (!host) {
+        resolve(true);
+        return;
+      }
+      setText('confirmMessage', message);
+      host.style.display = 'block';
+      requestAnimationFrame(() => host.classList.add('is-visible'));
+
+      function cleanup(result) {
+        host.classList.remove('is-visible');
+        window.setTimeout(() => { host.style.display = 'none'; }, 220);
+        byId('confirmYes')?.removeEventListener('click', onYes);
+        byId('confirmNo')?.removeEventListener('click', onNo);
+        byId('confirmBackdrop')?.removeEventListener('click', onNo);
+        resolve(result);
+      }
+      function onYes() { cleanup(true); }
+      function onNo() { cleanup(false); }
+
+      byId('confirmYes')?.addEventListener('click', onYes);
+      byId('confirmNo')?.addEventListener('click', onNo);
+      byId('confirmBackdrop')?.addEventListener('click', onNo);
+    });
   }
 
   // ---- 起動画面ポップアップ(連続ログイン・きのうの出来事・はげまし) ----
@@ -994,8 +1035,8 @@ async function bootstrap() {
     toast('読込しました');
   }
 
-  function resetNow() {
-    if (!window.confirm('森の保存データをリセットしますか？')) return;
+  async function resetNow() {
+    if (!(await showConfirm('森の保存データをリセットしますか？'))) return;
     core.reset();
     camera.zoom = 1;
     camera.centerOnCell(map.width / 2, map.height / 2);
@@ -1139,7 +1180,8 @@ async function bootstrap() {
       hideEndingModal();
     }
     if (event.target.closest?.('#endingNewForest')) {
-      if (window.confirm('今の森はそのまま「過去の森」として残ります。新しい森をはじめますか？')) {
+      showConfirm('今の森はそのまま「過去の森」として残ります。新しい森をはじめますか？').then((confirmed) => {
+        if (!confirmed) return;
         const result = core.startNewForest();
         if (result.ok) {
           hideEndingModal();
@@ -1156,7 +1198,7 @@ async function bootstrap() {
         } else {
           toast('新しい森を始められませんでした');
         }
-      }
+      });
     }
   });
 
