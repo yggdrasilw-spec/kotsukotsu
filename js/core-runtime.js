@@ -20,6 +20,16 @@ const EVENT_AUTO_SPAWN = {
   event_60: { type: 'animal_ground', count: 1 }
 };
 
+// 「木」「岩」は"大物"として、児童が選んで置くのではなく進行度(%)に応じて
+// システム側が自動でspots.jsonの決まった場所へ配置する(v24)。
+// treeSpotは全部で3つ(event_15で1本、event_65で残り2本 = 過不足なく埋まる)。
+// rockSpotは合計10だが、event_35の一度きりの演出なので控えめに4個だけ配置する。
+const EVENT_AUTO_PLACE = {
+  event_15: { spotType: 'tree', count: 1 },
+  event_35: { spotType: 'rock', count: 4 },
+  event_65: { spotType: 'tree', count: 2 }
+};
+
 // バッジの解放判定ロジック。core-runtime(進行を確定させる側)と
 // badge.js(表示用に評価するだけの側)の両方から使われる、副作用の無い純粋関数。
 // これを共有することで、片方だけ直して食い違う、という事故を防ぐ。
@@ -44,10 +54,12 @@ function clamp(value, min, max) {
 // すべて「0〜100の割合」で書かれている前提なので、実際の判定は
 // 生のclassPoints同士ではなく、必ずこの%へ変換してから比較する。
 // clearPoint(完全クリアに必要なクラスポイント)は先生がteacher.htmlで
-// 設定できる値(state.classInfo.clearPoint)で、GAS未接続のローカル単独時は
-// 既定値100を使う(=旧バージョンの「classPointsをそのまま%として扱う」挙動と互換)。
+// 設定できる値(state.classInfo.clearPoint)で、GAS未接続のローカル単独時や
+// サーバー同期前は既定値1000を使う(teacher.html/GAS側のデフォルトと揃える。
+// 以前はここが100のままで、GAS側の1000と食い違って森が早期に完成扱いに
+// なるバグがあった)。
 export function computeProgressPercent(state) {
-  const clearPoint = numberOrZero(state?.classInfo?.clearPoint) || 100;
+  const clearPoint = numberOrZero(state?.classInfo?.clearPoint) || 1000;
   const percent = (numberOrZero(state?.classPoints) / clearPoint) * 100;
   return clamp(Math.round(percent * 10) / 10, 0, 100);
 }
@@ -90,9 +102,12 @@ export class SaveManager {
         classCode: null,
         teacherName: '',
         // 完全クリア(=進行度100%)とみなすまでに必要なクラスポイント。先生がteacher.htmlで設定できる。
-        // ローカル単独時はこの既定値(100)がそのまま使われる。
-        clearPoint: 100
+        // ローカル単独時はこの既定値(1000。teacher.html/GAS側のデフォルトと揃えてある)がそのまま使われる。
+        clearPoint: 1000
       },
+      // 先生が「次の森を解放する」までは次の森へ進めない(v23)。ローカル単独時(先生がいない)は
+      // 常にtrueのままにしておき、クラス接続時はclass-sync.jsのpull()がサーバー値で上書きする。
+      nextForestUnlocked: true,
       // ---- 森のライフサイクル ----
       // 1つの森は進行度100%で「完成」する。完成後に子どもが「新しい森を始める」を選ぶと、
       // それまでの森は forestHistory に記録として残り、classPoints等の「森そのものの成長を
@@ -851,6 +866,17 @@ export class ForestCore {
             eventSummary.focus = { x: spawned[0].x, y: spawned[0].y };
           }
         }
+
+        // 「木」「岩」などの大物の自動配置(v24)。児童の手を借りず見た目を進める。
+        const autoPlace = EVENT_AUTO_PLACE[event.id];
+        if (autoPlace) {
+          const placedItems = this.autoPlaceAtSpotType(autoPlace.spotType, autoPlace.count);
+          if (placedItems.length) {
+            summary.autoPlaced = summary.autoPlaced || [];
+            summary.autoPlaced.push(...placedItems);
+            eventSummary.focus = eventSummary.focus || { x: placedItems[0].x, y: placedItems[0].y };
+          }
+        }
       }
 
       if (localChanged) {
@@ -977,12 +1003,18 @@ export class ForestCore {
   }
 
   // 「新しい森を始める」。完成済みの森のときだけ実行できる。
+  // クラス接続時(state.classInfo.classCodeがある場合)は、さらに先生が
+  // 「次の森を解放する」操作をするまでは進めない(v23)。ローカル単独時は
+  // nextForestUnlockedが常にtrueのままなので、この条件は影響しない。
   // 森そのものの成長を表す値(classPoints/completedEvents/placedAssets/animals/
   // unlockedCategories/このシーズンで取ったバッジ)だけをリセットし、
   // 個人の頑張りの記録(personalPoints/lifetimePoints/購入済みアセット等)は引き継ぐ。
   startNewForest() {
     if (this.state.forestStatus !== 'completed') {
       return { ok: false, reason: 'not_completed' };
+    }
+    if (this.state.classInfo?.classCode && !this.state.nextForestUnlocked) {
+      return { ok: false, reason: 'waiting_for_teacher' };
     }
     const archived = this.buildForestSummary();
     this.state.forestHistory = Array.isArray(this.state.forestHistory) ? this.state.forestHistory : [];
@@ -1000,6 +1032,9 @@ export class ForestCore {
     this.state.forestStartedAt = new Date().toISOString();
     this.state.forestCompletedAt = null;
     this.state.progressPercent = 0;
+    // 次の世代でもまた先生の解放操作が必要になるよう、ここで一旦falseに戻す。
+    // (クラス未接続のローカル単独時はtrueのままにしておく)
+    this.state.nextForestUnlocked = this.state.classInfo?.classCode ? false : true;
     this.pendingMilestoneSummary = null;
 
     pushActivityLog(this.state, {
@@ -1123,9 +1158,9 @@ export class ForestCore {
     return this.getProgressPercent() >= threshold;
   }
 
-  // 完全クリアに必要なクラスポイント。先生設定(state.classInfo.clearPoint)が無ければ既定100。
+  // 完全クリアに必要なクラスポイント。先生設定(state.classInfo.clearPoint)が無ければ既定1000。
   getClearPoint() {
-    return numberOrZero(this.state?.classInfo?.clearPoint) || 100;
+    return numberOrZero(this.state?.classInfo?.clearPoint) || 1000;
   }
 
   // 現在の進行度(0〜100の%)。events.json / badges.json / shop.json / assets.json の
@@ -1149,6 +1184,49 @@ export class ForestCore {
     if (!spot) return true;
     const maxCount = numberOrZero(spot.maxCount) || 1;
     return this.countPlacedAtSpot(spotId) < maxCount;
+  }
+
+  // 「木」「岩」のような大物を、児童の操作なしにspots.jsonの決まった場所へ
+  // システムが自動で置く(v24)。手動のplaceAssetと違い、所持チェック(canPlaceAsset)は
+  // 行わない(そもそも児童のパレットには出さないassetなので判定不要)し、
+  // ポイントも加算しない(自動演出であって、児童の頑張りの記録ではないため)。
+  autoPlaceAtSpotType(spotType, count = 1) {
+    const progressPercent = computeProgressPercent(this.state);
+    const candidateSpots = (this.spots || []).filter((spot) => spot.type === spotType);
+    const placed = [];
+    let remaining = count;
+
+    for (const spot of candidateSpots) {
+      if (remaining <= 0) break;
+      const maxCount = numberOrZero(spot.maxCount) || 1;
+      while (this.countPlacedAtSpot(spot.id) < maxCount && remaining > 0) {
+        const allowIds = Array.isArray(spot.allow) ? spot.allow : [];
+        const allowed = allowIds
+          .map((id) => this.assets.find((a) => a.id === id))
+          .filter((asset) => asset && numberOrZero(asset.unlock) <= progressPercent);
+        if (!allowed.length) break;
+        const asset = allowed[Math.floor(Math.random() * allowed.length)];
+
+        const now = new Date();
+        const item = {
+          assetId: asset.id,
+          spotId: spot.id,
+          x: spot.x,
+          y: spot.y,
+          placedId: `auto_${now.getTime()}_${Math.random().toString(36).slice(2, 7)}`,
+          createdAt: now.toISOString(),
+          studentId: null,
+          nickname: '森',
+          goalId: null,
+          goalTitle: null
+        };
+        this.state.placedAssets = Array.isArray(this.state.placedAssets) ? this.state.placedAssets : [];
+        this.state.placedAssets.push(item);
+        placed.push(item);
+        remaining -= 1;
+      }
+    }
+    return placed;
   }
 
   placeAsset(assetId, spotId, x, y) {

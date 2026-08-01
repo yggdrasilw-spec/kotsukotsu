@@ -1,4 +1,5 @@
 import { ApiClient } from './api-client.js';
+import { CONFIG } from './config.js';
 
 const LOCAL_KEY = 'kokotsu_teacher_info_v1';
 
@@ -137,10 +138,27 @@ function renderStudentRoster(roster, { attentionOnly = false } = {}) {
 // 仕様の「過去の森も振り返れる」に対応する(docs/14参照)。
 function renderForestRecord({ forestState }) {
   const generation = Number(forestState?.forestGeneration) || 1;
-  const status = forestState?.forestStatus === 'completed' ? '完成ずみ' : '育成中';
+  const isCompleted = forestState?.forestStatus === 'completed';
+  const status = isCompleted ? '完成ずみ' : '育成中';
   const clearPoint = Number(forestState?.clearPoint) || 0;
+
+  // (v23) 完成済みで、まだ先生が解放していなければ「次の森を解放する」ボタンを出す。
+  // 児童側はこのボタンが押されるまで「新しい森をはじめる」を実行できない。
+  let releaseHtml = '';
+  if (isCompleted) {
+    releaseHtml = forestState?.nextForestUnlocked
+      ? `<p class="forest-now__unlocked">🔓 次の森に進めるようになっています</p>`
+      : `
+        <div class="button-row" style="margin-top:8px;">
+          <button id="btnReleaseNextForest" class="btn btn--accent">次の森を解放する</button>
+        </div>
+        <p class="muted" style="margin-top:4px;">押すと、児童が「新しい森をはじめる」を実行できるようになります。</p>
+      `;
+  }
+
   byId('forestNow').innerHTML = `
     <div class="forest-now__current">🌳 <strong>${generation}代目</strong>の森 — ${escapeHtml(status)}</div>
+    ${releaseHtml}
   `;
 
   const history = Array.isArray(forestState?.forestHistory) ? [...forestState.forestHistory] : [];
@@ -179,6 +197,14 @@ async function main() {
   const dashboardView = byId('dashboardView');
   let lastRoster = [];
 
+  // GASのURLはconfig.js(js/config.js の CONFIG.gasBaseUrl)で一元管理する。
+  // 児童側(index.html)と同じ設定を見るようにして、先生が毎回手打ちしなくて済むようにする。
+  if (!CONFIG.gasBaseUrl) {
+    showMessage('config.js に gasBaseUrl が設定されていません。js/config.js を確認してください。');
+    return;
+  }
+  apiClient.setBaseUrl(CONFIG.gasBaseUrl);
+
   function setView(configured) {
     connectView.style.display = configured ? 'none' : 'grid';
     dashboardView.style.display = configured ? 'grid' : 'none';
@@ -196,7 +222,6 @@ async function main() {
 
   async function refreshDashboard() {
     if (!info) return;
-    apiClient.setBaseUrl(info.baseUrl);
     const res = await apiClient.syncState({ classCode: info.classCode });
     if (!res.ok) {
       showMessage(`読み込みに失敗しました: ${res.reason || 'unknown_error'}`);
@@ -242,16 +267,13 @@ async function main() {
   }
 
   byId('btnCreateClass').addEventListener('click', async () => {
-    const baseUrl = byId('baseUrlInput').value.trim();
-    if (!baseUrl) { showMessage('GASのURLを入力してください。'); return; }
     const teacherName = byId('teacherNameInput').value.trim();
     const clearPoint = Number(byId('clearPointInput').value) || 1000;
 
-    apiClient.setBaseUrl(baseUrl);
     const res = await apiClient.createClass({ teacherName, clearPoint });
     if (!res.ok) { showMessage(`作成できませんでした: ${res.reason || 'unknown_error'}`); return; }
 
-    info = { baseUrl, classCode: res.data.classCode };
+    info = { classCode: res.data.classCode };
     saveInfo(info);
     setView(true);
     await refreshDashboard();
@@ -259,15 +281,13 @@ async function main() {
   });
 
   byId('btnManageClass').addEventListener('click', async () => {
-    const baseUrl = byId('baseUrlInput').value.trim();
     const classCode = byId('joinCodeInput').value.trim();
-    if (!baseUrl || !classCode) { showMessage('GASのURLとクラスコードを入力してください。'); return; }
+    if (!classCode) { showMessage('クラスコードを入力してください。'); return; }
 
-    apiClient.setBaseUrl(baseUrl);
     const res = await apiClient.syncState({ classCode });
     if (!res.ok) { showMessage(`クラスが見つかりませんでした: ${res.reason || 'unknown_error'}`); return; }
 
-    info = { baseUrl, classCode };
+    info = { classCode };
     saveInfo(info);
     setView(true);
     await refreshDashboard();
@@ -283,13 +303,21 @@ async function main() {
 
   byId('btnRefresh').addEventListener('click', refreshDashboard);
 
+  byId('forestNow').addEventListener('click', async (event) => {
+    if (!event.target.closest?.('#btnReleaseNextForest')) return;
+    if (!info) return;
+    const res = await apiClient.releaseNextForest({ classCode: info.classCode });
+    if (!res.ok) { showMessage(`解放できませんでした: ${res.reason || 'unknown_error'}`); return; }
+    showMessage('');
+    refreshDashboard();
+  });
+
   byId('rosterFilterToggle').addEventListener('change', (event) => {
     renderStudentRoster(lastRoster, { attentionOnly: event.target.checked });
   });
 
   byId('btnSaveSettings').addEventListener('click', async () => {
     if (!info) return;
-    apiClient.setBaseUrl(info.baseUrl);
     const approvalMode = byId('approvalModeSelect').value;
     const maxGoals = Number(byId('maxGoalsInput').value) || 3;
     const clearPoint = Number(byId('clearPointSettingInput').value) || 1000;

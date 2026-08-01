@@ -21,15 +21,8 @@
     <div id="appMessage" class="app-message" style="display:none;"></div>
 
     <!-- 未接続のときだけ表示: クラスを作る/管理する -->
+    <!-- GASのURLはjs/config.jsのCONFIG.gasBaseUrlを使う(児童側と同じ設定を共有する)。 -->
     <div id="connectView" class="teacher-layout">
-      <section class="panel">
-        <h2>1. GASのウェブアプリURLを入力</h2>
-        <div class="field-row">
-          <label for="baseUrlInput">GASデプロイURL</label>
-          <input type="text" id="baseUrlInput" placeholder="https://script.google.com/macros/s/.../exec" />
-        </div>
-      </section>
-
       <div class="connect-choice">
         <section class="panel">
           <h2>新しいクラスを作る</h2>
@@ -50,7 +43,7 @@
           <h2>すでにあるクラスを管理する</h2>
           <div class="field-row">
             <label for="joinCodeInput">クラスコード</label>
-            <input type="text" id="joinCodeInput" placeholder="例: AB12CD" maxlength="12" />
+            <input type="text" id="joinCodeInput" placeholder="例: AB12CD" maxlength="16" />
           </div>
           <div class="button-row">
             <button id="btnManageClass" class="btn">このクラスを開く</button>

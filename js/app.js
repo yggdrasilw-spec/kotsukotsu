@@ -10,6 +10,7 @@ import { AudioManager } from './audio.js';
 import { getSeasonLabel } from './season.js';
 import { ApiClient } from './api-client.js';
 import { ClassSync } from './class-sync.js';
+import { initShopCarousels } from './shop-carousel.js';
 
 function byId(id) {
   return document.getElementById(id);
@@ -340,6 +341,7 @@ async function bootstrap() {
     setHTML('eventLog', view.logHtml);
     setHTML('badgePanel', view.badgeHtml);
     setHTML('shopPanel', view.shopHtml);
+    initShopCarousels();
     setHTML('goalPanel', view.goalHtml);
     setHTML('classPowerPanel', view.classPowerHtml);
     setText('progressPercentValue', `${Math.floor(core.getProgressPercent())}%`);
@@ -362,6 +364,11 @@ async function bootstrap() {
     setText('ownedCount', `${(state.ownedAssets || []).length}`);
     setText('placedCount', `${(state.placedAssets || []).length}`);
     updateThanksOptions(state.classmates || []);
+
+    // エンディング演出が表示中に先生が「次の森を解放する」を押した場合にも、
+    // 20秒周期の同期(classSync)からrefresh()経由でボタンの表示が追いつくようにする。
+    const endingHost = byId('endingHost');
+    if (endingHost && endingHost.style.display !== 'none') updateEndingReleaseState();
   }
 
   // クラス未接続(ソロプレイ)では送る相手がそもそも存在しないため、
@@ -650,6 +657,12 @@ async function bootstrap() {
     renderStoryProgress();
     scheduleStoryAdvance();
     setText('endingStoryPlayPause', storyPaused ? '▶' : '⏸');
+    // 最後のスライドまで来たら、映像優先の小さな字幕表示から
+    // 統計・年表・ボタンが見える通常のカード表示へ切り替える。
+    if (slide.isFinal) {
+      const host = byId('endingHost');
+      if (host) host.classList.add('is-expanded');
+    }
   }
 
   function goToStorySlide(index) {
@@ -673,6 +686,7 @@ async function bootstrap() {
   bindButton('endingStoryToggleText', () => {
     const details = byId('endingDetails');
     const btn = byId('endingStoryToggleText');
+    const host = byId('endingHost');
     if (!details) return;
     const opening = details.style.display === 'none' || !details.style.display;
     if (opening) {
@@ -680,10 +694,13 @@ async function bootstrap() {
       toggleStoryPause(true);
       details.style.display = 'block';
       if (btn) btn.textContent = 'スライドにもどる';
+      if (host) host.classList.add('is-expanded');
     } else {
       details.style.display = 'none';
       toggleStoryPause(storyPausedBeforeText);
       if (btn) btn.textContent = '文字でまとめて見る';
+      // 最後のスライドまで進んでいれば展開表示のままにする(見出し等が消えないように)
+      if (host && !storySlides[storyIndex]?.isFinal) host.classList.remove('is-expanded');
     }
   });
 
@@ -695,6 +712,17 @@ async function bootstrap() {
     return d.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric' });
   }
 
+  // 先生の解放待ち(v23)なら「新しい森をはじめる」ボタンを隠し、待機メッセージを出す。
+  // クラス未接続(ローカル単独)のときは常にボタンを出す。
+  function updateEndingReleaseState() {
+    const newForestBtn = byId('endingNewForest');
+    const waitingNote = byId('endingWaitingForTeacher');
+    const state = core.getState();
+    const waiting = Boolean(state.classInfo?.classCode) && !state.nextForestUnlocked;
+    if (newForestBtn) newForestBtn.style.display = waiting ? 'none' : '';
+    if (waitingNote) waitingNote.style.display = waiting ? 'block' : 'none';
+  }
+
   function showEndingModal(summary) {
     const host = byId('endingHost');
     if (!host || !summary) return;
@@ -704,11 +732,15 @@ async function bootstrap() {
     setText('endingEvents', `${summary.eventCount}`);
     setText('endingBadges', `${summary.badgeCount}`);
     setHTML('endingTimeline', buildEndingTimelineHtml(summary.timeline));
+    updateEndingReleaseState();
 
     const details = byId('endingDetails');
     if (details) details.style.display = 'none';
     const toggleBtn = byId('endingStoryToggleText');
     if (toggleBtn) toggleBtn.textContent = '文字でまとめて見る';
+
+    // 演出は毎回、映像(カメラ演出)優先の小さな字幕表示からスタートする。
+    host.classList.remove('is-expanded');
 
     storySlides = buildEndingStorySlides(summary);
     storyIndex = 0;
@@ -844,6 +876,17 @@ async function bootstrap() {
     const spawnNames = Array.isArray(summary.autoSpawned)
       ? summary.autoSpawned.map((s) => assets.find((a) => a.id === s.assetId)?.name || s.assetId)
       : [];
+    // 「木」「岩」などの自動配置(v24)も同じ軽いトーストで伝え、サーバーにも共有する
+    // (置いたのは児童ではないので、手動配置と同じ pushPlaceAsset で個別に送る)。
+    if (Array.isArray(summary.autoPlaced) && summary.autoPlaced.length) {
+      for (const placedItem of summary.autoPlaced) {
+        spawnNames.push(assets.find((a) => a.id === placedItem.assetId)?.name || placedItem.assetId);
+        classSync.pushPlaceAsset({
+          assetId: placedItem.assetId, spotId: placedItem.spotId, x: placedItem.x, y: placedItem.y,
+          goalId: null, goalTitle: null
+        });
+      }
+    }
     const categoryText = Array.isArray(summary.newCategories) && summary.newCategories.length
       ? `新しいジャンル解放: ${summary.newCategories.map((c) => CATEGORY_LABELS[c.category] || c.category).join(' / ')}`
       : null;
@@ -1107,6 +1150,9 @@ async function bootstrap() {
           refresh();
           // クラス共有プレイなら、みんなでも同じ次代へ進めるようにサーバー側にも伝える。
           classSync.pushStartNewForest();
+        } else if (result.reason === 'waiting_for_teacher') {
+          toast('先生が「次の森」を解放するまで、少し待ってね');
+          updateEndingReleaseState();
         } else {
           toast('新しい森を始められませんでした');
         }

@@ -276,6 +276,20 @@ export function createForestRenderer({
     }).join('');
   }
 
+  // パレットの見出しラベル(asset.layer || asset.type の生の値 → 子ども向けの日本語)。
+  // core-runtime.js の CATEGORY_LABELS(unlockedCategories用、bird/animal/fish/insectを
+  // まとめて"動物"にする等の別目的の対応表)とは別に、パレット表示用にすべての区分を
+  // 個別に持たせておく。
+  const PALETTE_CATEGORY_LABELS = {
+    ground: '地面', path: '小道', rock: '岩', flower: '花', mushroom: 'きのこ',
+    bird: '小鳥', animal: '動物', fish: '魚', seed: '木の実', effect: 'きらきら', insect: '虫'
+  };
+
+  // (v24) 木・岩などの"大物"はクラスの進行度で自動的に配置されるようにしたため、
+  // 児童が選ぶ小物だけをここに並べる(assets.json側で該当アセットをplaceable:falseにしてある)。
+  // 表示は「下に長くスクロールしなくて済む」ことを優先し、カテゴリごとに大きなカードを
+  // 縦に並べる代わりに、小さなピル(絵文字+名前)を折り返しながら並べる一覧に変更した。
+  // カテゴリの区切りは見出しブロックではなく、行に混ざる小さなタグ文字にして面積を取らない。
   function renderPalette(state) {
     const owned = new Set([...(state?.ownedAssets || []), ...(state?.shopPurchased || [])]);
     const progress = computeProgressPercent(state);
@@ -284,19 +298,16 @@ export function createForestRenderer({
 
     const grouped = new Map();
     (assets || []).forEach((asset) => {
-      // 最初からmap.json上に固定terrainとして存在するアセットは
-      // プレイヤーが選んで配置するものではないため、パレットに出さない。
+      // 最初からmap.json上に固定terrainとして存在するアセットや、進行度で自動配置される
+      // 大物(木・岩など)はプレイヤーが選んで配置するものではないため、パレットに出さない。
       if (asset.placeable === false) return;
       const category = asset.layer || asset.type || 'misc';
       if (!grouped.has(category)) grouped.set(category, []);
       grouped.get(category).push(asset);
     });
 
-    const sections = [];
+    const parts = [];
     for (const [category, items] of grouped.entries()) {
-      // 情報量を減らすため、いま置ける物だけをカードで見せ、まだ解放されていない物は
-      // 1件ずつのロックカードにせず「あと◯こ」の折りたたみへまとめる。
-      // (低学年・支援級での利用を想定。docs/14, docs/15参照)
       const usable = [];
       const locked = [];
       items.forEach((asset) => {
@@ -306,45 +317,39 @@ export function createForestRenderer({
         const canPlace = isOwned || (!requiresShop && unlockedByProgress);
         (canPlace ? usable : locked).push({ asset, isOwned, requiresShop, unlock: Number(asset.unlock || 0) });
       });
+      if (!usable.length && !locked.length) continue;
 
-      const cards = usable.map(({ asset, isOwned }) => {
+      parts.push(`<span class="palette-tag">${escapeHtml(PALETTE_CATEGORY_LABELS[category] || category)}</span>`);
+
+      parts.push(...usable.map(({ asset, isOwned }) => {
         const { image, glyph, color } = resolveVisual(asset);
-        // 画像(image)が404などで表示できなくても、絵文字(glyph)も無ければ最低限
-        // placeholderColorのベタ塗りで「何も無い空白ボタン」に見えないようにする。
         const thumb = glyph
-          ? `<div class="asset-card__thumb asset-card__thumb--glyph"><span>${escapeHtml(glyph)}</span></div>`
-          : `<div class="asset-card__thumb" style="background-color:${color || '#dcefc9'};background-image:url('${image}')"></div>`;
+          ? `<span class="asset-pill__glyph">${escapeHtml(glyph)}</span>`
+          : `<span class="asset-pill__thumb" style="background-color:${color || '#dcefc9'};background-image:url('${image}')"></span>`;
         return `
           <button class="asset-card ${isOwned ? 'is-owned' : ''}"
                   data-select-asset="${escapeHtml(asset.id)}"
                   data-asset-type="${escapeHtml(asset.type || '')}"
                   title="${escapeHtml(asset.description || asset.name || asset.id)}">
-            ${thumb}
-            <div class="asset-card__name">${escapeHtml(asset.name || asset.id)}</div>
+            ${thumb}<span class="asset-card__name">${escapeHtml(asset.name || asset.id)}</span>
           </button>
         `;
-      }).join('');
+      }));
 
-      const lockedHtml = locked.length
-        ? `
-          <details class="palette-section__locked">
-            <summary>🔒 まだ${locked.length}こ（タップで見る）</summary>
+      if (locked.length) {
+        parts.push(`
+          <details class="palette-locked-inline">
+            <summary>🔒 ${locked.length}</summary>
             <div class="palette-section__locked-list">
               ${locked.map(({ asset, requiresShop, unlock }) => `<span class="asset-chip">${escapeHtml(asset.name || asset.id)}${requiresShop ? '（ショップ）' : `（解放 ${unlock}%）`}</span>`).join('')}
             </div>
           </details>
-        `
-        : '';
-
-      sections.push(`
-        <section class="palette-section">
-          <h3>${escapeHtml(category)}</h3>
-          <div class="palette-grid">${cards || '<p class="muted">つかえるアイテムがまだありません。</p>'}</div>
-          ${lockedHtml}
-        </section>
-      `);
+        `);
+      }
     }
-    return sections.join('');
+
+    if (!parts.length) return '<p class="muted">つかえるアイテムがまだありません。</p>';
+    return `<div class="palette-flow">${parts.join('')}</div>`;
   }
 
 
@@ -362,51 +367,50 @@ export function createForestRenderer({
       sections.get(category).push(item);
     });
 
+    // stamp_card.htmlのスタンプピッカーと同じ「1行カルーセル」方式。
+    // カテゴリが何点あっても常に1行に収まり、中央＝いま見ている商品として
+    // 詳細（名前・価格・購入ボタン、または解放条件）を下の.shop-detailに出す。
+    // 実際の中央寄せ・ドラッグ・詳細更新はjs/shop-carousel.jsが担当するため、
+    // ここでは各カードにdata属性で必要な情報を持たせるだけにとどめる。
     return [...sections.entries()].map(([category, entries]) => {
-      // パレットと同じ考え方: まだ解放されていない商品はカードを並べず、
-      // 「あと◯こ」の折りたたみへまとめて情報量を抑える。
-      const visible = [];
-      const locked = [];
-      entries.forEach((item) => {
-        const unlocked = progress >= Number(item?.unlockCondition?.progress || 0);
-        (unlocked ? visible : locked).push(item);
-      });
-
-      const cards = visible.map((item) => {
+      const cardsHtml = entries.map((item) => {
         const price = Number(item?.price || 0);
         const owned = purchased.has(item.id);
-        const canBuy = !owned && points >= price;
+        const unlockProgress = Number(item?.unlockCondition?.progress || 0);
+        const unlocked = progress >= unlockProgress;
+        const canBuy = unlocked && !owned && points >= price;
         const asset = assetById.get(item.assetId) || null;
         const { image, glyph, color } = resolveVisual(asset);
         const icon = glyph
           ? `<div class="shop-card__icon shop-card__icon--glyph"><span>${escapeHtml(glyph)}</span></div>`
           : `<div class="shop-card__icon" style="background-color:${color || '#dcefc9'};background-image:url('${image}')"></div>`;
         return `
-          <div class="shop-card ${owned ? 'is-owned' : ''}">
+          <div class="shop-carousel-item ${owned ? 'is-owned' : ''} ${unlocked ? '' : 'is-locked'}"
+               data-shop-item
+               data-id="${escapeHtml(item.id)}"
+               data-name="${escapeHtml(item.name || item.id)}"
+               data-desc="${escapeHtml(item.description || '')}"
+               data-price="${price}"
+               data-owned="${owned ? '1' : '0'}"
+               data-unlocked="${unlocked ? '1' : '0'}"
+               data-unlock-progress="${unlockProgress}"
+               data-can-buy="${canBuy ? '1' : '0'}">
             ${icon}
-            <div class="shop-card__name" title="${escapeHtml(item.description || '')}">${escapeHtml(item.name || item.id)}</div>
-            <div class="shop-card__meta">${owned ? '購入ずみ' : `${price}ポイント`}</div>
-            <button class="btn shop-card__buy" data-buy-shop="${escapeHtml(item.id)}" ${owned || !canBuy ? 'disabled' : ''}>${owned ? '購入済み' : '購入'}</button>
           </div>
         `;
       }).join('');
 
-      const lockedHtml = locked.length
-        ? `
-          <details class="shop-section__locked">
-            <summary>🔒 まだ${locked.length}こ（タップで見る）</summary>
-            <div class="shop-section__locked-list">
-              ${locked.map((item) => `<span class="asset-chip">${escapeHtml(item.name || item.id)}（解放 ${Number(item?.unlockCondition?.progress || 0)}%）</span>`).join('')}
-            </div>
-          </details>
-        `
-        : '';
-
       return `
-        <section class="shop-section">
+        <section class="shop-section" data-shop-category="${escapeHtml(category)}">
           <h3>${escapeHtml(category)}</h3>
-          <div class="shop-grid">${cards || ''}</div>
-          ${lockedHtml}
+          <div class="shop-carousel">
+            <button type="button" class="shop-carousel-arrow" data-shop-prev aria-label="まえの商品">‹</button>
+            <div class="shop-carousel-viewport">
+              <div class="shop-carousel-track" data-shop-track>${cardsHtml}</div>
+            </div>
+            <button type="button" class="shop-carousel-arrow" data-shop-next aria-label="つぎの商品">›</button>
+          </div>
+          <div class="shop-detail" data-shop-detail></div>
         </section>
       `;
     }).join('');
@@ -524,7 +528,7 @@ export function createForestRenderer({
     const personalPoints = Number(state?.personalPoints || 0);
     const lifetimePoints = Number(state?.lifetimePoints || 0);
     const classPoints = Number(state?.classPoints || 0);
-    const clearPoint = Number(state?.classInfo?.clearPoint || 100);
+    const clearPoint = Number(state?.classInfo?.clearPoint || 1000);
     const progressPercent = computeProgressPercent(state);
     const season = state?.settings?.season || 'spring';
     const ownedCount = Array.isArray(state?.ownedAssets) ? state.ownedAssets.length : 0;

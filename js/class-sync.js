@@ -267,9 +267,7 @@ export class ClassSync {
 
     // 森の世代(forestGeneration)を見て、通常のmaxマージか、世代の切り替えかを判定する。
     // classPointsは「増える一方」の値なのでmax(local, server)で取りこぼしを防げるが、
-    // それが成り立つのは同じ世代の森を育てている間だけ。誰かが先に「新しい森」を始めて
-    // サーバー側の世代が進んでいたら、max()では古い世代の高いclassPointsが残ってしまい
-    // 新しい森がいきなり完成扱いになる事故になる。その場合はサーバーの値をそのまま採用する。
+    // それが成り立つのは同じ世代の森を育てている間だけ。
     const serverGeneration = Number(forestState.forestGeneration) || 1;
     const localGeneration = Number(state.forestGeneration) || 1;
 
@@ -287,6 +285,15 @@ export class ClassSync {
       state.forestCompletedAt = forestState.forestCompletedAt || null;
       state.progressPercent = 0;
       state.pendingMilestoneSummary = null;
+      state.nextForestUnlocked = Boolean(forestState.nextForestUnlocked);
+    } else if (serverGeneration < localGeneration) {
+      // 自分の端末がさきほど「新しい森」を始めたばかりで、サーバー側の反映(pushStartNewForest)が
+      // まだ追いついていないケース。ここで前世代のforestState(高いclassPoints/forestStatus:'completed'等)を
+      // 取り込んでしまうと、リセットしたばかりの森が古いポイントでいきなり完成扱いに巻き戻ってしまう
+      // 事故になる(「1000ポイントのはずが古い世代の点数で完成してしまう」「新しい森を作るが効かない
+      // ように見える」不具合の原因だった)。サーバーがまだ古い世代である間はローカルの値を正として保持し、
+      // 何もマージしない。念のためstartNewForestの共有を再送して、サーバー側の追いつきを促す。
+      this.pushStartNewForest();
     } else {
       state.classPoints = Math.max(Number(state.classPoints) || 0, Number(forestState.classPoints) || 0);
       state.completedEvents = Array.from(new Set([...(state.completedEvents || []), ...(forestState.completedEvents || [])]));
@@ -300,6 +307,8 @@ export class ClassSync {
         state.forestStatus = 'completed';
         state.forestCompletedAt = forestState.forestCompletedAt || new Date().toISOString();
       }
+      // 先生が「次の森を解放する」ボタンを押したかどうかはサーバーが正なので、そのまま取り込む。
+      state.nextForestUnlocked = Boolean(forestState.nextForestUnlocked);
     }
 
     state.forestHistory = mergeForestHistory(state.forestHistory, forestState.forestHistory);

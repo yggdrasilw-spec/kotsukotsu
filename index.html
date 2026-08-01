@@ -31,7 +31,7 @@
     <div id="classConnectBar" class="class-connect-bar" style="display:none;">
       <span class="class-connect-bar__label">クラスに<ruby>入<rt>はい</rt></ruby>る</span>
       <form id="classConnectForm" class="class-connect-bar__form">
-        <input type="text" id="classCodeFieldInput" placeholder="クラスID（例: AB12CD）" maxlength="12" required />
+        <input type="text" id="classCodeFieldInput" placeholder="クラスID（例: AB12CD）" maxlength="16" required />
         <input type="text" id="classNicknameInput" placeholder="ニックネーム" maxlength="20" required />
         <button type="submit" class="btn btn--accent"><ruby>入<rt>はい</rt></ruby>る</button>
       </form>
@@ -158,6 +158,9 @@
               <div class="ending-card__actions">
                 <button id="endingClose" class="btn btn--ghost">このまま<ruby>見<rt>み</rt></ruby>る</button>
                 <button id="endingNewForest" class="btn btn--accent"><ruby>新<rt>あたら</rt></ruby>しい<ruby>森<rt>もり</rt></ruby>をはじめる</button>
+                <p id="endingWaitingForTeacher" class="ending-card__waiting" style="display:none;">
+                  🔒 <ruby>先生<rt>せんせい</rt></ruby>が「<ruby>次<rt>つぎ</rt></ruby>の<ruby>森<rt>もり</rt></ruby>」を<ruby>解放<rt>かいほう</rt></ruby>するまで、少し<ruby>待<rt>ま</rt></ruby>っていてね
+                </p>
               </div>
             </div>
           </div>

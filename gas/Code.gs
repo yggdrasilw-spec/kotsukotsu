@@ -20,13 +20,15 @@
  *  疎通: ping
  *  クラス/参加: createClass, joinClass
  *  同期: syncState
- *  森: placeAsset, removePlacedAsset, updateForestState, startNewForest
+ *  森: placeAsset, removePlacedAsset, updateForestState, startNewForest, releaseNextForest
  *  (v16.1) ForestStateに forestGeneration/forestStatus/forestStartedAt/forestCompletedAt/forestHistory を追加。
  *  「完全クリア→次の森へ」をクラス全員で共有できるようにした(docs/14参照)。
+ *  (v23) ForestStateに nextForestUnlocked を追加。森が完成しても、先生がreleaseNextForestで
+ *  解放するまでは児童側のstartNewForestが実行できないようにした(教員が進行をコントロールするため)。
  *  目標: createGoal, removeGoal, completeGoal, approveGoal, rejectGoal
  *  ありがとう: sendThanks
  *  ショップ: buyItem
- *  先生設定: setGoalSettings, setClearPoint
+ *  先生設定: setGoalSettings, setClearPoint, setRosterThresholds
  *  (v22) クラス協力の意味づけ強化: 目標達成/承認のたびに announceContribution() が
  *  ActivityLogへ「誰が/何をして/森が何%育ったか」を記録する。5%の節目をまたいだ行動は
  *  type:'contribution_milestone' として actorName/points/progress を持つ特別な行にする
@@ -63,8 +65,11 @@ const SHEET_HEADERS = {
   // forestGeneration/forestStatus/forestStartedAt/forestCompletedAt/forestHistory は
   // 「クラス全員で同じ森を次代へつなぐ」ための追加列(docs/14参照)。
   // core-runtime.js側のstateフィールド名とできるだけ1対1にしてある。
+  // nextForestUnlocked は「先生が次の森を解放する」フロー(v23)のための追加列。
+  // 児童側が完成後すぐに次の森へ進めてしまわないよう、先生が明示的に解放するまでfalseにしておく。
+  // (migrateHeadersが既存シートにも自動で列を追加する。setupSheets参照)
   ForestState: ['classCode', 'classPoints', 'completedEvents', 'unlockedCategories', 'badges', 'animals',
-    'forestGeneration', 'forestStatus', 'forestStartedAt', 'forestCompletedAt', 'forestHistory']
+    'forestGeneration', 'forestStatus', 'forestStartedAt', 'forestCompletedAt', 'forestHistory', 'nextForestUnlocked']
 };
 
 const CLASS_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789-_'; // 紛らわしい 0/O, 1/I/l は除外
@@ -150,7 +155,8 @@ const ACTION_HANDLERS = {
   buyItem: handleBuyItem,
   setGoalSettings: handleSetGoalSettings,
   setClearPoint: handleSetClearPoint,
-  setRosterThresholds: handleSetRosterThresholds
+  setRosterThresholds: handleSetRosterThresholds,
+  releaseNextForest: handleReleaseNextForest
 };
 
 // ---- 疎通 ----
@@ -187,7 +193,8 @@ function handleCreateClass({ payload }) {
     forestStatus: 'growing',
     forestStartedAt: now,
     forestCompletedAt: '',
-    forestHistory: JSON.stringify([])
+    forestHistory: JSON.stringify([]),
+    nextForestUnlocked: false
   });
 
   return { ok: true, data: { classCode, clearPoint, mapId } };
@@ -294,7 +301,8 @@ function handleSyncState({ classCode, studentId }) {
         forestStatus: forestStateRow.forestStatus || 'growing',
         forestStartedAt: forestStateRow.forestStartedAt || null,
         forestCompletedAt: forestStateRow.forestCompletedAt || null,
-        forestHistory: safeParseJson(forestStateRow.forestHistory, [])
+        forestHistory: safeParseJson(forestStateRow.forestHistory, []),
+        nextForestUnlocked: forestStateRow.nextForestUnlocked === true
       },
       placedAssets: placedAssets.map(stripRowMeta),
       activityLog: activityLog.map(stripRowMeta),
@@ -388,6 +396,8 @@ function handleStartNewForest({ classCode }) {
   const forestRow = findRow(SHEET_NAMES.FOREST_STATE, 'classCode', classCode);
   if (!forestRow) return { ok: false, reason: 'not_found' };
   if (forestRow.forestStatus !== 'completed') return { ok: false, reason: 'not_completed' };
+  // (v23) 先生が「次の森を解放する」ボタンを押すまでは、児童側から次の森へは進めない。
+  if (forestRow.nextForestUnlocked !== true) return { ok: false, reason: 'not_released' };
 
   const klass = findRow(SHEET_NAMES.CLASSES, 'classCode', classCode);
   const clearPoint = (klass && Number(klass.clearPoint)) || 1000;
@@ -444,12 +454,25 @@ function handleStartNewForest({ classCode }) {
     forestStatus: 'growing',
     forestStartedAt: now,
     forestCompletedAt: '',
-    forestHistory: JSON.stringify(dedupedHistory)
+    forestHistory: JSON.stringify(dedupedHistory),
+    nextForestUnlocked: false
   });
 
   appendActivityLog(classCode, 'new_forest', `🌱 ${nextGeneration}代目の森がはじまりました`);
 
   return { ok: true, data: { generation: nextGeneration, archived } };
+}
+
+// 先生用: 完成した森から次の森へ進めるように解放する(v23)。
+// 児童側は forestStatus==='completed' かつ nextForestUnlocked===true のときだけ
+// startNewForest を実行できる(handleStartNewForest参照)。
+function handleReleaseNextForest({ classCode }) {
+  const forestRow = findRow(SHEET_NAMES.FOREST_STATE, 'classCode', classCode);
+  if (!forestRow) return { ok: false, reason: 'not_found' };
+  if (forestRow.forestStatus !== 'completed') return { ok: false, reason: 'not_completed' };
+  updateRow(SHEET_NAMES.FOREST_STATE, forestRow._row, { nextForestUnlocked: true });
+  appendActivityLog(classCode, 'teacher_release', '🔓 先生が次の森に進めるようにしました');
+  return { ok: true, data: {} };
 }
 
 // ---- 目標 ----

@@ -81,6 +81,11 @@ export class ApiClient {
     return this.call('startNewForest', { classCode, studentId });
   }
 
+  // 先生用: 完成した森から次の森へ進めるように解放する(v23)。
+  releaseNextForest({ classCode }) {
+    return this.call('releaseNextForest', { classCode });
+  }
+
   // ---- 目標 ----
   createGoal({ classCode, studentId, title, targetCount }) {
     return this.call('createGoal', { classCode, studentId, payload: { title, targetCount } });

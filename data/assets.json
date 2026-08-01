@@ -220,7 +220,7 @@
         "tree_oak_03"
       ],
       "description": "森の主役になる標準木",
-      "placeable": true,
+      "placeable": false,
       "emoji": "🌳"
     },
     {
@@ -251,7 +251,7 @@
         "tree_birch_03"
       ],
       "description": "明るい雰囲気の木",
-      "placeable": true,
+      "placeable": false,
       "emoji": "🌳"
     },
     {
@@ -282,7 +282,7 @@
         "tree_pine_03"
       ],
       "description": "大きな存在感のある木",
-      "placeable": true,
+      "placeable": false,
       "emoji": "🌲"
     },
     {
@@ -344,7 +344,7 @@
         "rock_small_03"
       ],
       "description": "小さな岩",
-      "placeable": true,
+      "placeable": false,
       "emoji": "🪨"
     },
     {
@@ -375,7 +375,7 @@
         "rock_medium_03"
       ],
       "description": "森のアクセントになる岩",
-      "placeable": true,
+      "placeable": false,
       "emoji": "🪨"
     },
     {
