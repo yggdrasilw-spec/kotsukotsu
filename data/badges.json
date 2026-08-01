@@ -23,6 +23,24 @@
       "description": "森が少し育った証"
     },
     {
+      "id": "badge_forest_04",
+      "name": "小道と橋の探検家",
+      "condition": {
+        "progress": 30,
+        "completedEvents": [
+          "event_25",
+          "event_30"
+        ]
+      },
+      "reward": {
+        "points": 30,
+        "items": {
+          "leaf": 5
+        }
+      },
+      "description": "道と橋がそろった証"
+    },
+    {
       "id": "badge_forest_02",
       "name": "水辺の発見",
       "condition": {
@@ -38,6 +56,24 @@
         }
       },
       "description": "池が見つかった証"
+    },
+    {
+      "id": "badge_forest_05",
+      "name": "にぎやかな森",
+      "condition": {
+        "progress": 70,
+        "completedEvents": [
+          "event_60",
+          "event_70"
+        ]
+      },
+      "reward": {
+        "points": 60,
+        "items": {
+          "sparkle": 5
+        }
+      },
+      "description": "動物たちが集まってきた証"
     },
     {
       "id": "badge_forest_03",

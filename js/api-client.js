@@ -63,8 +63,8 @@ export class ApiClient {
   }
 
   // ---- 森 ----
-  placeAsset({ classCode, studentId, assetId, spotId, x, y }) {
-    return this.call('placeAsset', { classCode, studentId, payload: { assetId, spotId, x, y } });
+  placeAsset({ classCode, studentId, assetId, spotId, x, y, goalId, goalTitle }) {
+    return this.call('placeAsset', { classCode, studentId, payload: { assetId, spotId, x, y, goalId, goalTitle } });
   }
 
   removePlacedAsset({ classCode, studentId, placedId }) {
@@ -73,6 +73,12 @@ export class ApiClient {
 
   updateForestState({ classCode, studentId, forestState }) {
     return this.call('updateForestState', { classCode, studentId, payload: forestState });
+  }
+
+  // 「新しい森をはじめる」をクラス全員で共有するためのaction。
+  // 実際のアーカイブ/リセットはサーバー側(gas/Code.gs handleStartNewForest)が正として行う。
+  startNewForest({ classCode, studentId }) {
+    return this.call('startNewForest', { classCode, studentId });
   }
 
   // ---- 目標 ----
@@ -113,5 +119,9 @@ export class ApiClient {
 
   setClearPoint({ classCode, studentId, clearPoint }) {
     return this.call('setClearPoint', { classCode, studentId, payload: { clearPoint } });
+  }
+
+  setRosterThresholds({ classCode, studentId, stalledDays, supportDays }) {
+    return this.call('setRosterThresholds', { classCode, studentId, payload: { stalledDays, supportDays } });
   }
 }

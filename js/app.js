@@ -15,6 +15,14 @@ function byId(id) {
   return document.getElementById(id);
 }
 
+function escapeHtml(text) {
+  return String(text ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
+}
+
 function createShopItemsFromAssets(assets) {
   return assets
     .filter((asset) => asset.type !== 'terrain' && asset.placeable !== false)
@@ -51,6 +59,44 @@ function toast(message, extraClass = '') {
 function setText(id, text) {
   const el = byId(id);
   if (el) el.textContent = text;
+}
+
+// 「クリア」ボタンの位置から、+ポイントと星をふわっと飛ばす。
+// ボタンはこのあとrefresh()で作り直されるので、要素ではなく座標だけ使う。
+function spawnCelebration(anchorEl, points) {
+  const rect = anchorEl?.getBoundingClientRect?.();
+  if (!rect) return;
+  const originX = rect.left + rect.width / 2;
+  const originY = rect.top + rect.height / 2;
+
+  const pieces = [];
+  if (points) pieces.push({ text: `+${points}`, cls: 'celebrate-particle--points', dx: 0, delay: 0 });
+  const emojis = ['✨', '🌟', '🍃'];
+  emojis.forEach((emoji, i) => {
+    pieces.push({ text: emoji, cls: 'celebrate-particle--emoji', dx: (i - 1) * 26, delay: 40 + i * 40 });
+  });
+
+  pieces.forEach(({ text, cls, dx, delay }) => {
+    window.setTimeout(() => {
+      const el = document.createElement('span');
+      el.className = `celebrate-particle ${cls}`;
+      el.textContent = text;
+      el.style.left = `${originX}px`;
+      el.style.top = `${originY}px`;
+      el.style.setProperty('--drift-x', `calc(-50% + ${dx}px)`);
+      document.body.appendChild(el);
+      window.setTimeout(() => el.remove(), 1000);
+    }, delay);
+  });
+}
+
+// 数字が変わったことに気づきやすいよう、一瞬だけパルスさせる。
+function pulse(id) {
+  const el = byId(id);
+  if (!el) return;
+  el.classList.remove('stat-pop');
+  void el.offsetWidth; // 連続で発火しても再生し直せるよう強制リフロー
+  el.classList.add('stat-pop');
 }
 
 function setHTML(id, html) {
@@ -114,6 +160,8 @@ async function bootstrap() {
 
   const apiClient = new ApiClient();
   const classSync = new ClassSync({ apiClient, core, onSync: () => refresh() });
+  // 「だれが置いたか」の記録用。クラス未接続ならローカルの「わたし」のまま。
+  core.setIdentity({ studentId: classSync.info?.studentId || null, nickname: classSync.info?.nickname || 'わたし' });
 
   const badgeManager = new BadgeManager(badges);
   const audio = new AudioManager();
@@ -156,6 +204,21 @@ async function bootstrap() {
   });
 
   camera.setViewport(viewportEl.clientWidth, viewportEl.clientHeight);
+
+  // 画面サイズに対して森全体(map.width × map.height)が入りきる倍率を計算する。
+  // これを実質的なminZoomとして採用することで、「85%までしか縮小できず全体が見えない」
+  // 問題を解消する。ウィンドウリサイズのたびに呼び直す。
+  function computeFitZoom() {
+    const worldWidth = map.width * camera.cellSize;
+    const worldHeight = map.height * camera.cellSize;
+    const fit = Math.min(camera.viewportWidth / worldWidth, camera.viewportHeight / worldHeight);
+    return Math.max(0.06, fit * 0.94); // 少し余白を残す
+  }
+  function applyDynamicMinZoom() {
+    camera.minZoom = Math.min(CONFIG.minZoom, computeFitZoom());
+  }
+  applyDynamicMinZoom();
+
   if (Number.isFinite(savedSettings.cameraX) && Number.isFinite(savedSettings.cameraY)) {
     camera.x = savedSettings.cameraX;
     camera.y = savedSettings.cameraY;
@@ -198,6 +261,43 @@ async function bootstrap() {
     setText('zoomValue', `${Math.round(camera.zoom * 100)}%`);
   }
 
+  // マウスドラッグ/ホイールでのズームには使わない、演出専用のなめらかなカメラ移動。
+  // { x, y }は移動先の左上ワールド座標、zoomは目標倍率。どちらも省略可。
+  function animateCamera({ x, y, zoom } = {}, duration = 650) {
+    return new Promise((resolve) => {
+      const startX = camera.x;
+      const startY = camera.y;
+      const startZoom = camera.zoom;
+      const endZoom = zoom == null ? startZoom : camera.clampZoom(zoom);
+      const endX = x == null ? startX : x;
+      const endY = y == null ? startY : y;
+      const startTime = performance.now();
+      function step(now) {
+        const t = Math.min(1, (now - startTime) / duration);
+        const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        camera.zoom = startZoom + (endZoom - startZoom) * eased;
+        camera.x = startX + (endX - startX) * eased;
+        camera.y = startY + (endY - startY) * eased;
+        camera.clampToBounds();
+        updateCameraOnly();
+        if (t < 1) {
+          requestAnimationFrame(step);
+        } else {
+          resolve();
+        }
+      }
+      requestAnimationFrame(step);
+    });
+  }
+
+  // 指定したワールド座標(worldX, worldY)が画面中央に来るような、目標zoomでのカメラ位置を計算する。
+  function cameraTopLeftToCenterOn(worldX, worldY, zoom) {
+    return {
+      x: worldX - camera.viewportWidth / (2 * zoom),
+      y: worldY - camera.viewportHeight / (2 * zoom)
+    };
+  }
+
   function updateUiFlagsFromState() {
     const settings = core.getState().settings || {};
     placement.setFlags({
@@ -208,6 +308,9 @@ async function bootstrap() {
   }
 
   let logExpanded = false;
+  let pendingStatPulse = false;
+  let confirmRemoveGoalId = null;
+  let confirmRemoveTimer = null;
 
   function refresh() {
     announceMilestones();
@@ -221,15 +324,14 @@ async function bootstrap() {
       ...g,
       ...core.getGoalStatus(g.id)
     }));
-    const pendingApprovalsView = core.listPendingApprovals();
     const renderState = {
       ...state,
       eventCatalog: events,
       evaluatedBadges,
       shopItems: core.shop.items,
       goalsView,
-      pendingApprovalsView,
-      logExpanded
+      logExpanded,
+      confirmRemoveGoalId
     };
 
     const view = renderer.render(renderState);
@@ -239,12 +341,17 @@ async function bootstrap() {
     setHTML('badgePanel', view.badgeHtml);
     setHTML('shopPanel', view.shopHtml);
     setHTML('goalPanel', view.goalHtml);
-    setHTML('approvalPanel', view.approvalHtml);
-    const teacherModeChk = byId('chkTeacherMode');
-    if (teacherModeChk) teacherModeChk.checked = state.goalSettings?.approvalMode === 'teacher';
-    setText('progressValue', `${Math.floor(state.classPoints || 0)}`);
+    setHTML('classPowerPanel', view.classPowerHtml);
+    setText('progressPercentValue', `${Math.floor(core.getProgressPercent())}%`);
+    const progressFillEl = byId('progressBarFill');
+    if (progressFillEl) progressFillEl.style.width = `${core.getProgressPercent()}%`;
     setText('personalValue', `${Math.floor(state.personalPoints || 0)}`);
     setText('seasonValue', getSeasonLabel(state.settings?.season || 'spring'));
+    if (pendingStatPulse) {
+      pendingStatPulse = false;
+      pulse('personalValue');
+      pulse('progressPercentValue');
+    }
     const seasonOverlay = byId('seasonOverlay');
     if (seasonOverlay) seasonOverlay.dataset.season = state.settings?.season || 'spring';
     setText('zoomValue', `${Math.round(camera.zoom * 100)}%`);
@@ -254,28 +361,520 @@ async function bootstrap() {
     setText('selectedAssetMeta', selectedAsset?.description || selectedAsset?.type || selectedAsset?.id || '—');
     setText('ownedCount', `${(state.ownedAssets || []).length}`);
     setText('placedCount', `${(state.placedAssets || []).length}`);
+    updateThanksOptions(state.classmates || []);
+  }
+
+  // クラス未接続(ソロプレイ)では送る相手がそもそも存在しないため、
+  // 「だれに送る？」しか選べない空のフォームを出し続けるのではなく、
+  // 「クラスとつながると使える」ことが伝わるロック表示に切り替える。
+  function updateThanksOptions(classmates) {
+    const form = byId('thanksForm');
+    const lockedMessage = byId('thanksLockedMessage');
+    const isConnected = classSync.isConfigured();
+    if (form) form.style.display = isConnected ? '' : 'none';
+    if (lockedMessage) lockedMessage.style.display = isConnected ? 'none' : '';
+    if (!isConnected) return;
+
+    const select = byId('thanksNameSelect');
+    if (!select) return;
+    const current = select.value;
+    const optionsHtml = ['<option value="">だれに送る？</option>']
+      .concat(classmates.map((name) => `<option value="${name}">${name}さん</option>`));
+    select.innerHTML = optionsHtml.join('');
+    if (classmates.includes(current)) select.value = current;
+  }
+
+  // ---- マイルストーン(イベント/バッジ)演出 ----
+  // 「何かが起きたら、拡大してメッセージを出す」ための、1件ずつ順番に見せるキュー。
+  // 同時に複数のイベント/バッジが達成されても(デモ再生でよく起こる)、
+  // 一つずつカメラをズームインしながら見せるので、何が起きたか追いやすい。
+  const milestoneQueue = [];
+  let milestoneBusy = false;
+  // 100%到達(森の完成)を検知したら、通常のイベント/バッジ演出が全部終わった後に
+  // エンディングモーダルを開く。ここに積んでおいて、キューが空になったタイミングで消費する。
+  let pendingForestCompletion = null;
+
+  function wait(ms) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
+  }
+
+  function showBanner({ icon, title, message, rewardText, contributorText }) {
+    const host = byId('milestoneHost');
+    if (!host) return null;
+    host.innerHTML = '';
+    const card = document.createElement('div');
+    card.className = 'milestone-banner';
+    const iconEl = document.createElement('div');
+    iconEl.className = 'milestone-banner__icon';
+    iconEl.textContent = icon || '✨';
+    card.appendChild(iconEl);
+    const titleEl = document.createElement('div');
+    titleEl.className = 'milestone-banner__title';
+    titleEl.textContent = title || '';
+    card.appendChild(titleEl);
+    if (message) {
+      const msgEl = document.createElement('div');
+      msgEl.className = 'milestone-banner__message';
+      msgEl.textContent = message;
+      card.appendChild(msgEl);
+    }
+    if (rewardText) {
+      const rewardEl = document.createElement('div');
+      rewardEl.className = 'milestone-banner__reward';
+      rewardEl.textContent = rewardText;
+      card.appendChild(rewardEl);
+    }
+    // クラス協力の意味づけ強化(v22): このイベントが起きる「最後のひと押し」が
+    // 誰の行動だったかを添える。分かるときだけ表示する(不明ならcontributorTextがnull)。
+    if (contributorText) {
+      const contribEl = document.createElement('div');
+      contribEl.className = 'milestone-banner__contributor';
+      contribEl.textContent = contributorText;
+      card.appendChild(contribEl);
+    }
+    host.appendChild(card);
+    requestAnimationFrame(() => card.classList.add('is-visible'));
+    return card;
+  }
+
+  // eventSummary.contributor(ニックネーム、または自分の場合はidentity.nicknameと一致)から
+  // バナーに出す文言を組み立てる。分からなければnull(バナーには何も足さない)。
+  function contributorLabel(contributor) {
+    if (!contributor) return null;
+    const myNickname = core.identity?.nickname;
+    if (myNickname && contributor === myNickname) return '🙌 最後のひと押しは、あなたでした！';
+    return `🙌 最後のひと押しは、${contributor}さんでした！`;
+  }
+
+  function hideBanner(card) {
+    if (!card) return;
+    card.classList.remove('is-visible');
+    window.setTimeout(() => card.remove(), 320);
+  }
+
+  // 森に置かれている花などをタップしたときの「だれが/いつ/どんな目標をクリアして」ポップアップ。
+  function formatPlacedAt(iso) {
+    if (!iso) return '記録なし';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '記録なし';
+    return d.toLocaleString('ja-JP', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function showPlacedInfoPopup(placedId) {
+    const info = core.getPlacedAssetInfo(placedId);
+    const host = byId('placedInfoHost');
+    if (!info || !host) return;
+    const { asset, nickname, goalTitle, createdAt } = info;
+    setText('placedInfoEmoji', asset?.emoji || '🌱');
+    setText('placedInfoName', asset?.name || info.item.assetId);
+    setText('placedInfoWho', `${nickname}が置いたよ`);
+    setText('placedInfoWhen', formatPlacedAt(createdAt));
+    setText('placedInfoGoal', goalTitle ? `「${goalTitle}」をクリアしたよ` : 'とくに目標はなく、自由に置いたよ');
+    host.style.display = 'block';
+    requestAnimationFrame(() => host.classList.add('is-visible'));
+  }
+
+  function hidePlacedInfoPopup() {
+    const host = byId('placedInfoHost');
+    if (!host) return;
+    host.classList.remove('is-visible');
+    window.setTimeout(() => { host.style.display = 'none'; }, 220);
+  }
+
+  // ---- 起動画面ポップアップ(連続ログイン・きのうの出来事・はげまし) ----
+  function showWelcomePopup() {
+    const host = byId('welcomeHost');
+    if (!host) return;
+    const summary = core.getDailySummary();
+    setText('welcomeStreak', summary.streak >= 2 ? `🔥 ${summary.streak}日連続で来てくれたね` : 'ようこそ、コツコツの森へ');
+    setText('welcomeProgress', `森の進み具合: ${Math.floor(summary.progressPercent)}%（${summary.forestGeneration}代目）`);
+    setText('welcomeEncouragement', summary.encouragement);
+    // イベント通知(前回の起動からのできごと)があればそちらを優先表示する。
+    // クラス共有プレイでは自分が見ていない間に他の子の行動で進んだ分もここに含まれる。
+    const hasEventNotifications = summary.eventNotificationCount > 0;
+    setText('welcomeHighlightsTitle', hasEventNotifications ? 'あたらしいできごと' : 'きのうのできごと');
+    const highlightSource = hasEventNotifications ? summary.eventNotifications : summary.yesterdayHighlights;
+    const highlightsHtml = highlightSource.length
+      ? highlightSource.map((m) => `<li>${escapeHtml(m)}</li>`).join('')
+      : '<li>きのうはお休みだったみたい。今日からまたコツコツいこう</li>';
+    setHTML('welcomeHighlights', highlightsHtml);
+    setText('welcomeUnread', summary.unreadCount > 0 ? `🧡 とどいている「ありがとう」が ${summary.unreadCount} 件あるよ` : '');
+    host.style.display = 'block';
+    requestAnimationFrame(() => host.classList.add('is-visible'));
+  }
+
+  function hideWelcomePopup() {
+    const host = byId('welcomeHost');
+    if (!host) return;
+    host.classList.remove('is-visible');
+    window.setTimeout(() => { host.style.display = 'none'; }, 220);
+  }
+
+  // ---- エンディング(森の完成)演出: 「動画っぽい振り返り」 ----
+  // Instagram/メルカリのストーリーのように、タイトル→日ごとのできごと→統計→
+  // 締めくくり、の順にスライドを自動再生する。タップで前後移動、一時停止も可能。
+  // 文字だけで確認したい/読むのに時間がかかる子のために、静的な一覧表示も残す。
+  let storySlides = [];
+  let storyIndex = 0;
+  let storyTimer = null;
+  let storyPaused = false;
+  let storyPausedBeforeText = false;
+
+  function groupTimelineByDate(timeline) {
+    const groups = [];
+    const map = new Map();
+    for (const entry of Array.isArray(timeline) ? timeline : []) {
+      const dateLabel = formatEndingDate(entry.at) || '記録なし';
+      if (!map.has(dateLabel)) {
+        const group = { dateLabel, entries: [] };
+        map.set(dateLabel, group);
+        groups.push(group);
+      }
+      map.get(dateLabel).entries.push(entry);
+    }
+    return groups;
+  }
+
+  // 日数が多いときは全部見せず、はじめ・なか・おわりから均等に選んで
+  // 「ハイライト」にする(動画のダイジェストに近い感覚にするため)。
+  function pickHighlightGroups(groups, max) {
+    if (groups.length <= max) return groups;
+    const picked = new Set();
+    const step = (groups.length - 1) / (max - 1);
+    for (let i = 0; i < max; i++) picked.add(groups[Math.round(i * step)]);
+    return groups.filter((g) => picked.has(g));
+  }
+
+  function buildEndingStorySlides(summary) {
+    const slides = [];
+    const dateRange = `${formatEndingDate(summary.startedAt)} 〜 ${formatEndingDate(summary.completedAt)}`;
+
+    slides.push({
+      duration: 2600,
+      render: () => `
+        <div class="story-slide story-slide--title">
+          <div class="story-slide__emoji">🎉</div>
+          <h3>${summary.generation}代目の森が完成！</h3>
+          <p>${escapeHtml(dateRange)}</p>
+        </div>
+      `
+    });
+
+    const groups = groupTimelineByDate(summary.timeline);
+    const highlightGroups = pickHighlightGroups(groups, 6);
+    const overflowCount = groups.length - highlightGroups.length;
+
+    highlightGroups.forEach((group, i) => {
+      const isLast = i === highlightGroups.length - 1;
+      slides.push({
+        duration: Math.min(4200, 1800 + group.entries.length * 500),
+        render: () => `
+          <div class="story-slide story-slide--day">
+            <time>${escapeHtml(group.dateLabel)}</time>
+            <ul>
+              ${group.entries.map((e) => `<li>${escapeHtml(e.icon || '🌲')} ${escapeHtml(e.message)}</li>`).join('')}
+            </ul>
+            ${isLast && overflowCount > 0 ? `<p class="story-slide__note">ほかにも${overflowCount}日ぶん、みんなでコツコツ育てました</p>` : ''}
+          </div>
+        `
+      });
+    });
+
+    slides.push({
+      duration: 3400,
+      countUp: true,
+      render: () => `
+        <div class="story-slide story-slide--stats">
+          <h3>みんなで育てた記録</h3>
+          <div class="story-stat"><span class="story-stat__label">クラスポイント</span><strong data-count-to="${Math.floor(summary.classPoints)}">0</strong></div>
+          <div class="story-stat"><span class="story-stat__label">置いたもの</span><strong data-count-to="${summary.placedCount}">0</strong></div>
+          <div class="story-stat"><span class="story-stat__label">起きたできごと</span><strong data-count-to="${summary.eventCount}">0</strong></div>
+          <div class="story-stat"><span class="story-stat__label">獲得バッジ</span><strong data-count-to="${summary.badgeCount}">0</strong></div>
+        </div>
+      `
+    });
+
+    slides.push({
+      duration: 0,
+      isFinal: true,
+      render: () => `
+        <div class="story-slide story-slide--final">
+          <div class="story-slide__emoji">🌳</div>
+          <h3>今日もコツコツ、ありがとう！</h3>
+          <p>下のボタンから、このまま見るか、新しい森をはじめよう。</p>
+        </div>
+      `
+    });
+
+    return slides;
+  }
+
+  function runStoryCountUp() {
+    document.querySelectorAll('#endingStorySlide [data-count-to]').forEach((el) => {
+      const target = Number(el.dataset.countTo) || 0;
+      const start = performance.now();
+      const duration = 900;
+      function step(now) {
+        const t = Math.min(1, (now - start) / duration);
+        el.textContent = `${Math.floor(target * t)}`;
+        if (t < 1) requestAnimationFrame(step);
+        else el.textContent = `${target}`;
+      }
+      requestAnimationFrame(step);
+    });
+  }
+
+  function renderStoryProgress() {
+    const host = byId('endingStoryProgress');
+    if (!host) return;
+    host.innerHTML = storySlides.map((slide, i) => {
+      const cls = i < storyIndex ? 'is-done' : i === storyIndex ? (slide.isFinal ? 'is-current is-final' : 'is-current') : '';
+      const style = i === storyIndex && slide.duration ? ` style="--story-duration:${slide.duration}ms"` : '';
+      return `<span class="story-progress__seg ${cls}"${style}><span class="story-progress__fill"></span></span>`;
+    }).join('');
+    host.classList.toggle('is-paused', storyPaused);
+  }
+
+  function scheduleStoryAdvance() {
+    window.clearTimeout(storyTimer);
+    const slide = storySlides[storyIndex];
+    if (!slide || slide.isFinal || storyPaused || !slide.duration) return;
+    storyTimer = window.setTimeout(() => goToStorySlide(storyIndex + 1), slide.duration);
+  }
+
+  function renderStorySlide() {
+    const slide = storySlides[storyIndex];
+    if (!slide) return;
+    setHTML('endingStorySlide', slide.render());
+    if (slide.countUp) runStoryCountUp();
+    renderStoryProgress();
+    scheduleStoryAdvance();
+    setText('endingStoryPlayPause', storyPaused ? '▶' : '⏸');
+  }
+
+  function goToStorySlide(index) {
+    if (!storySlides.length) return;
+    storyIndex = Math.max(0, Math.min(storySlides.length - 1, index));
+    renderStorySlide();
+  }
+
+  function toggleStoryPause(forcePause) {
+    storyPaused = forcePause !== undefined ? forcePause : !storyPaused;
+    const host = byId('endingStoryProgress');
+    if (host) host.classList.toggle('is-paused', storyPaused);
+    setText('endingStoryPlayPause', storyPaused ? '▶' : '⏸');
+    window.clearTimeout(storyTimer);
+    if (!storyPaused) scheduleStoryAdvance();
+  }
+
+  bindButton('endingStoryPlayPause', () => toggleStoryPause());
+  bindButton('endingStoryPrev', () => goToStorySlide(storyIndex - 1));
+  bindButton('endingStoryNext', () => goToStorySlide(storyIndex + 1));
+  bindButton('endingStoryToggleText', () => {
+    const details = byId('endingDetails');
+    const btn = byId('endingStoryToggleText');
+    if (!details) return;
+    const opening = details.style.display === 'none' || !details.style.display;
+    if (opening) {
+      storyPausedBeforeText = storyPaused;
+      toggleStoryPause(true);
+      details.style.display = 'block';
+      if (btn) btn.textContent = 'スライドにもどる';
+    } else {
+      details.style.display = 'none';
+      toggleStoryPause(storyPausedBeforeText);
+      if (btn) btn.textContent = '文字でまとめて見る';
+    }
+  });
+
+  // ---- エンディング(森の完成)演出 ----
+  function formatEndingDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric' });
+  }
+
+  function showEndingModal(summary) {
+    const host = byId('endingHost');
+    if (!host || !summary) return;
+    setText('endingGeneration', `${summary.generation}代目の森（${formatEndingDate(summary.startedAt)}〜${formatEndingDate(summary.completedAt)}）`);
+    setText('endingPoints', `${Math.floor(summary.classPoints)} / ${Math.floor(summary.clearPoint)}`);
+    setText('endingPlaced', `${summary.placedCount}`);
+    setText('endingEvents', `${summary.eventCount}`);
+    setText('endingBadges', `${summary.badgeCount}`);
+    setHTML('endingTimeline', buildEndingTimelineHtml(summary.timeline));
+
+    const details = byId('endingDetails');
+    if (details) details.style.display = 'none';
+    const toggleBtn = byId('endingStoryToggleText');
+    if (toggleBtn) toggleBtn.textContent = '文字でまとめて見る';
+
+    storySlides = buildEndingStorySlides(summary);
+    storyIndex = 0;
+    storyPaused = false;
+    renderStorySlide();
+
+    host.style.display = 'block';
+    requestAnimationFrame(() => host.classList.add('is-visible'));
+  }
+
+  // 「森の年表」を日付ごとにまとめ、種別アイコンを添えて密度を出す。
+  // 1件ずつ横に並べるより、メルカリ風の「その日なにが起きたか」のまとまりに近づける。
+  function buildEndingTimelineHtml(timeline) {
+    const entries = Array.isArray(timeline) ? timeline : [];
+    if (!entries.length) return '<li>記録が見つかりませんでした</li>';
+
+    const groups = new Map();
+    for (const entry of entries) {
+      const dateLabel = formatEndingDate(entry.at) || '記録なし';
+      if (!groups.has(dateLabel)) groups.set(dateLabel, []);
+      groups.get(dateLabel).push(entry);
+    }
+
+    return [...groups.entries()].map(([dateLabel, dayEntries]) => `
+      <li class="ending-card__timeline-day">
+        <time>${escapeHtml(dateLabel)}</time>
+        <ul class="ending-card__timeline-items">
+          ${dayEntries.map((entry) => `<li>${escapeHtml(entry.icon || '🌲')} ${escapeHtml(entry.message)}</li>`).join('')}
+        </ul>
+      </li>
+    `).join('');
+  }
+
+  function hideEndingModal() {
+    const host = byId('endingHost');
+    if (!host) return;
+    window.clearTimeout(storyTimer);
+    host.classList.remove('is-visible');
+    window.setTimeout(() => { host.style.display = 'none'; }, 260);
+  }
+
+  // 森の完成を検知したら、カメラを引いて全景を見せてからエンディングモーダルを開く。
+  async function showEndingSequence(summary) {
+    const fitZoom = computeFitZoom();
+    const center = cameraTopLeftToCenterOn(
+      (map.width * camera.cellSize) / 2,
+      (map.height * camera.cellSize) / 2,
+      fitZoom
+    );
+    await animateCamera({ x: center.x, y: center.y, zoom: fitZoom }, 900);
+    playEffect('rainbow');
+    if (core.getState().settings?.sfx) audio.beep(880, 0.12);
+    await wait(400);
+    showEndingModal(summary);
+  }
+
+  async function presentMilestone(item) {
+    const prevX = camera.x;
+    const prevY = camera.y;
+    const prevZoom = camera.zoom;
+    const targetZoom = camera.clampZoom(Math.max(camera.zoom, 1.0) * 1.15);
+
+    let targetPos;
+    if (item.focus) {
+      const worldX = item.focus.x * camera.cellSize + camera.cellSize / 2;
+      const worldY = item.focus.y * camera.cellSize + camera.cellSize / 2;
+      targetPos = cameraTopLeftToCenterOn(worldX, worldY, targetZoom);
+    } else {
+      const centerWorldX = camera.x + camera.viewportWidth / (2 * camera.zoom);
+      const centerWorldY = camera.y + camera.viewportHeight / (2 * camera.zoom);
+      targetPos = cameraTopLeftToCenterOn(centerWorldX, centerWorldY, targetZoom);
+    }
+
+    await animateCamera({ x: targetPos.x, y: targetPos.y, zoom: targetZoom }, 550);
+    const card = showBanner({ ...item, contributorText: item.kind === 'event' ? contributorLabel(item.contributor) : null });
+    if (item.effect) playEffect(item.effect);
+    if (core.getState().settings?.sfx) {
+      audio.beep(item.kind === 'badge' ? 660 : 520, 0.06);
+    }
+    await wait(1900);
+    hideBanner(card);
+    await animateCamera({ x: prevX, y: prevY, zoom: prevZoom }, 500);
+  }
+
+  async function processMilestoneQueue() {
+    milestoneBusy = true;
+    while (milestoneQueue.length) {
+      const item = milestoneQueue.shift();
+      await presentMilestone(item);
+    }
+    if (pendingForestCompletion) {
+      const completion = pendingForestCompletion;
+      pendingForestCompletion = null;
+      await showEndingSequence(completion);
+    }
+    milestoneBusy = false;
   }
 
   function announceMilestones() {
     const summary = core.consumeMilestoneSummary();
-    const text = summarizeMilestones(summary);
-    const autoSpawnText = Array.isArray(summary?.autoSpawned) && summary.autoSpawned.length
-      ? `新しい仲間: ${summary.autoSpawned.map((id) => assets.find((a) => a.id === id)?.name || id).join(' / ')}`
-      : null;
-    const combined = [text, autoSpawnText].filter(Boolean).join(' | ');
-    if (!combined) return;
-    toast(combined);
-    if (core.getState().settings?.sfx) {
-      audio.beep(summary?.newBadges?.length ? 660 : 520, 0.06);
+    if (!summary) return;
+
+    for (const ev of summary.newEvents || []) {
+      milestoneQueue.push({
+        kind: 'event',
+        icon: '🌲',
+        title: ev.title,
+        message: ev.message,
+        effect: ev.effect,
+        focus: ev.focus || null,
+        contributor: ev.contributor || null
+      });
     }
-    // events.json の effect フィールドを実際の画面演出として再生する
-    const lastEventWithEffect = [...(summary?.newEvents || [])].reverse().find((ev) => ev.effect);
-    if (lastEventWithEffect) playEffect(lastEventWithEffect.effect);
+
+    for (const badge of summary.newBadges || []) {
+      const rewardParts = [];
+      if (badge.reward?.points) rewardParts.push(`+${badge.reward.points}ポイント`);
+      if (badge.reward?.items) {
+        for (const [key, value] of Object.entries(badge.reward.items)) {
+          rewardParts.push(`${key}×${value}`);
+        }
+      }
+      milestoneQueue.push({
+        kind: 'badge',
+        icon: '🏅',
+        title: `バッジ獲得: ${badge.name}`,
+        message: badge.description,
+        rewardText: rewardParts.length ? rewardParts.join(' / ') : null
+      });
+    }
+
+    // 頻度が高いもの(カテゴリ解放・仲間の出現)は大演出にすると煩わしいので軽いトーストのままにする
+    const spawnNames = Array.isArray(summary.autoSpawned)
+      ? summary.autoSpawned.map((s) => assets.find((a) => a.id === s.assetId)?.name || s.assetId)
+      : [];
+    const categoryText = Array.isArray(summary.newCategories) && summary.newCategories.length
+      ? `新しいジャンル解放: ${summary.newCategories.map((c) => CATEGORY_LABELS[c.category] || c.category).join(' / ')}`
+      : null;
+    const spawnText = spawnNames.length ? `新しい仲間: ${spawnNames.join(' / ')}` : null;
+    const lightCombined = [categoryText, spawnText].filter(Boolean).join(' | ');
+    if (lightCombined) toast(lightCombined);
+
+    if (summary.forestCompleted) {
+      pendingForestCompletion = summary.forestCompleted;
+      // 20秒周期のpull()を待たず、完成した瞬間にクラス全体へ伝える。
+      classSync.pushForestCompleted();
+    }
+
+    if ((milestoneQueue.length || pendingForestCompletion) && !milestoneBusy) {
+      processMilestoneQueue();
+    }
   }
 
   function announceNotifications() {
     const unread = core.consumeNotifications();
     for (const notification of unread) {
+      if (notification.type === 'goal_approved') {
+        // 承認制モードでの「達成」の瞬間。自己承認モードの celebrate と
+        // 体験を揃える(先生の承認を待った子が損をした気にならないように)。
+        toast(`✅ ${notification.message}${notification.points ? ` +${notification.points}ポイント` : ''}`, 'toast--special');
+        if (core.getState().settings?.sfx) audio.chime();
+        const anchor = byId('progressPercentValue') || byId('personalValue');
+        if (anchor) spawnCelebration(anchor, notification.points);
+        pendingStatPulse = true;
+        continue;
+      }
       // 「受け取った本人には特別ポップアップ表示」= 通常のトーストより長く目立たせる。
       toast(`🧡 ${notification.message}`, 'toast--special');
       if (core.getState().settings?.sfx) audio.beep(880, 0.08);
@@ -297,20 +896,20 @@ async function bootstrap() {
     core,
     onDirty: refresh,
     onCameraChange: updateCameraOnly,
-    onSelect: (assetId) => {
-      const asset = assets.find((a) => a.id === assetId);
-      setText('selectedAssetName', asset?.name || assetId);
-      setText('selectedAssetMeta', asset?.description || asset?.type || assetId);
-    },
     onToast: toast,
     onPlace: (placed) => {
       if (!placed) return;
-      classSync.pushPlaceAsset({ assetId: placed.assetId, spotId: placed.spotId, x: placed.x, y: placed.y });
-    }
+      classSync.pushPlaceAsset({
+        assetId: placed.assetId, spotId: placed.spotId, x: placed.x, y: placed.y,
+        goalId: placed.goalId, goalTitle: placed.goalTitle
+      });
+    },
+    onPlacedInfo: (placedId) => showPlacedInfoPopup(placedId)
   });
 
   function resize() {
     camera.setViewport(viewportEl.clientWidth, viewportEl.clientHeight);
+    applyDynamicMinZoom();
     camera.clampToBounds();
     refresh();
   }
@@ -327,7 +926,6 @@ async function bootstrap() {
   }
 
   function loadNow() {
-    if (demoTimer) stopDemo();
     const loaded = core.saveManager.load();
     core.state = loaded;
     core.animals.hydrate(loaded.animals);
@@ -355,7 +953,6 @@ async function bootstrap() {
 
   function resetNow() {
     if (!window.confirm('森の保存データをリセットしますか？')) return;
-    if (demoTimer) stopDemo();
     core.reset();
     camera.zoom = 1;
     camera.centerOnCell(map.width / 2, map.height / 2);
@@ -388,79 +985,14 @@ async function bootstrap() {
     camera.centerOnCell(map.width / 2, map.height / 2);
     refresh();
   });
-  bindButton('btnAddPoints', () => {
-    core.addPoints(10);
-    refresh();
-    toast('（テスト用）10ポイント追加');
-  });
-
-  // ---- デモ再生 ----
-  // 「ポイントが自動で少しずつ増えて、イベント/バッジ/カテゴリ解放が
-  // 順番に進んでいく様子」を、実際の操作をしなくても見られるようにする機能。
-  // 既存の core.addPoints() → refresh() → announceMilestones() の流れをそのまま使うので、
-  // トースト表示・演出(playEffect)・動物自動出現なども通常プレイと同じ形で発火する。
-  const DEMO_TICK_MS = 900;
-  const DEMO_TARGET_POINTS = 120; // event_100(森の完成)を確実に超える値
-  const DEMO_MAX_TICKS = 80; // 万一ポイントが伸びない場合の保険の打ち切り
-  let demoTimer = null;
-  let demoTick = 0;
-
-  function setDemoButtonState(isRunning) {
-    const btn = byId('btnDemoPlay');
-    if (!btn) return;
-    btn.textContent = isRunning ? '⏹ デモ停止' : '🎬 デモ再生';
-    btn.classList.toggle('is-active', isRunning);
-  }
-
-  function stopDemo(message) {
-    if (demoTimer) {
-      clearInterval(demoTimer);
-      demoTimer = null;
-    }
-    demoTick = 0;
-    setDemoButtonState(false);
-    if (message) toast(message);
-  }
-
-  function startDemo() {
-    if (demoTimer) return;
-    demoTick = 0;
-    setDemoButtonState(true);
-    toast('🎬 デモ再生を開始します（森が育っていく様子を自動で流します）');
-    demoTimer = setInterval(() => {
-      demoTick += 1;
-      // 最初は控えめに、だんだん一度に増える量が大きくなっていく(2→最大14)。
-      const amount = Math.min(14, 2 + Math.floor(demoTick / 3));
-      core.addPoints(amount);
-      refresh();
-      const classPoints = core.getState().classPoints || 0;
-      if (classPoints >= DEMO_TARGET_POINTS || demoTick >= DEMO_MAX_TICKS) {
-        stopDemo('🌳 デモ再生が完了しました（森の成長イベントを最後まで再生しました）');
-      }
-    }, DEMO_TICK_MS);
-  }
-
-  bindButton('btnDemoPlay', () => {
-    if (demoTimer) {
-      stopDemo('デモ再生を停止しました');
-    } else {
-      startDemo();
-    }
-  });
-  bindButton('btnSpawnBird', () => {
-    const result = core.spawnAnimal('bird', 2);
-    refresh();
-    toast(result.spawned.length ? '小鳥を出しました' : 'もうスポットがいっぱいです');
-  });
-  bindButton('btnSpawnSquirrel', () => {
-    const result = core.spawnAnimal('animal_ground', 1);
-    refresh();
-    toast(result.spawned.length ? '小動物を出しました' : 'もうスポットがいっぱいです');
-  });
-  bindButton('btnSpawnInsect', () => {
-    const result = core.spawnAnimal('insect', 3);
-    refresh();
-    toast(result.spawned.length ? '虫を出しました' : 'もうスポットがいっぱいです');
+  bindButton('btnFitView', () => {
+    const fitZoom = computeFitZoom();
+    const center = cameraTopLeftToCenterOn(
+      (map.width * camera.cellSize) / 2,
+      (map.height * camera.cellSize) / 2,
+      fitZoom
+    );
+    animateCamera({ x: center.x, y: center.y, zoom: fitZoom }, 550);
   });
 
   bindButton('btnSeasonSpring', () => { core.setSeason('spring'); refresh(); });
@@ -468,53 +1000,118 @@ async function bootstrap() {
   bindButton('btnSeasonAutumn', () => { core.setSeason('autumn'); refresh(); });
   bindButton('btnSeasonWinter', () => { core.setSeason('winter'); refresh(); });
 
-  bindButton('btnToggleGrid', () => {
-    const current = Boolean(core.getState().settings?.showGrid);
-    core.setUIFlag('showGrid', !current);
-    placement.setFlags({ showGrid: !current });
-    renderer.setDebug(Boolean(core.getState().settings?.showGrid || core.getState().settings?.showSpots));
-    refresh();
-  });
-  bindButton('btnToggleSpots', () => {
-    const current = Boolean(core.getState().settings?.showSpots);
-    core.setUIFlag('showSpots', !current);
-    placement.setFlags({ showSpots: !current });
-    renderer.setDebug(Boolean(core.getState().settings?.showGrid || core.getState().settings?.showSpots));
-    refresh();
-  });
-
   function updateClassSyncStatus() {
-    setText('classSyncStatus', classSync.isConfigured() ? `${classSync.info.nickname}(${classSync.info.classCode})` : '未接続');
+    const bar = byId('classConnectBar');
+    if (bar) bar.style.display = classSync.isConfigured() ? 'none' : 'flex';
   }
 
-  bindButton('btnClassSync', async () => {
-    if (classSync.isConfigured()) {
-      const ok = window.confirm(`クラス連携中: ${classSync.info.classCode}\n連携を解除しますか？(この端末の森はローカルに残ります)`);
-      if (ok) {
-        classSync.disconnect();
-        toast('クラス連携を解除しました');
-        updateClassSyncStatus();
-      }
+  // ---- かんたん表示(低学年・支援級向けに、サイドパネルを1枚ずつに絞る) ----
+  const TAB_IDS = ['goals', 'thanks', 'badges', 'assets', 'shop'];
+  let activeTab = TAB_IDS[0];
+
+  function applySimpleMode() {
+    const simpleMode = Boolean(core.getState().settings?.simpleMode);
+    const shell = byId('app');
+    if (shell) shell.classList.toggle('app-shell--simple', simpleMode);
+    const toggleBtn = byId('simpleModeToggle');
+    if (toggleBtn) toggleBtn.textContent = simpleMode ? 'ぜんぶ表示' : 'かんたん表示';
+    if (!simpleMode) return;
+
+    document.querySelectorAll('.sidebar .panel[data-tab]').forEach((panel) => {
+      panel.classList.toggle('is-active-tab', panel.dataset.tab === activeTab);
+    });
+    document.querySelectorAll('.panel-tabs__btn').forEach((btn) => {
+      btn.classList.toggle('is-active', btn.dataset.tabTarget === activeTab);
+    });
+  }
+
+  bindButton('simpleModeToggle', () => {
+    const state = core.getState();
+    state.settings = state.settings || {};
+    state.settings.simpleMode = !state.settings.simpleMode;
+    core.persist();
+    applySimpleMode();
+  });
+
+  // ---- ふりがな(既定オン。漢字がまだ読めない学年の子でも迷わないように) ----
+  function applyFurigana() {
+    const state = core.getState();
+    const on = state.settings?.furigana !== false;
+    const shell = byId('app');
+    if (shell) shell.classList.toggle('furigana-on', on);
+    const toggleBtn = byId('furiganaToggle');
+    if (toggleBtn) toggleBtn.textContent = on ? 'ふりがな消す' : 'ふりがな';
+  }
+
+  bindButton('furiganaToggle', () => {
+    const state = core.getState();
+    state.settings = state.settings || {};
+    state.settings.furigana = state.settings.furigana === false; // 現在offならon、それ以外はoff
+    core.persist();
+    applyFurigana();
+  });
+
+  applyFurigana();
+
+  document.addEventListener('click', (event) => {
+    const tabBtn = event.target.closest?.('[data-tab-target]');
+    if (!tabBtn) return;
+    activeTab = tabBtn.dataset.tabTarget;
+    applySimpleMode();
+  });
+
+  applySimpleMode();
+
+  document.addEventListener('submit', (event) => {
+    const form = event.target.closest?.('#classConnectForm');
+    if (!form) return;
+    event.preventDefault();
+    const classCode = (byId('classCodeFieldInput')?.value || '').trim();
+    const nickname = (byId('classNicknameInput')?.value || '').trim();
+    if (!classCode || !nickname) return;
+    if (!CONFIG.gasBaseUrl) {
+      toast('先生に接続先の設定をお願いしてください');
       return;
     }
-    const baseUrl = window.prompt('GASのウェブアプリURLを入力してください(例: https://script.google.com/macros/s/.../exec)');
-    if (!baseUrl) return;
-    const nickname = window.prompt('ニックネームを入力してください') || 'わたし';
-    const codeInput = window.prompt('参加するクラスコードを入力してください。\n新しくクラスを作る場合は空欄のままOKですすめてください。');
-    let result;
-    if (codeInput && codeInput.trim()) {
-      result = await classSync.joinExistingClass({ baseUrl, classCode: codeInput.trim(), nickname });
-    } else {
-      const teacherName = window.prompt('先生のお名前(任意)') || '';
-      result = await classSync.setupNewClass({ baseUrl, teacherName, clearPoint: 1000, nickname });
+    classSync.joinExistingClass({ baseUrl: CONFIG.gasBaseUrl, classCode, nickname }).then((result) => {
+      if (result.ok) {
+        toast(`クラスに入りました（${classSync.info.classCode}）`);
+        core.setIdentity({ studentId: classSync.info.studentId, nickname: classSync.info.nickname });
+        classSync.startAutoSync();
+      } else {
+        toast(`入れませんでした: ${result.reason || 'unknown_error'}`);
+      }
+      updateClassSyncStatus();
+    });
+  });
+
+  document.addEventListener('click', (event) => {
+    if (event.target.closest?.('#placedInfoClose') || event.target.closest?.('#placedInfoBackdrop')) {
+      hidePlacedInfoPopup();
     }
-    if (result.ok) {
-      toast(`クラスに接続しました（コード: ${classSync.info.classCode}）`);
-      classSync.startAutoSync();
-    } else {
-      toast(`接続できませんでした: ${result.reason || 'unknown_error'}`);
+    if (event.target.closest?.('#welcomeClose') || event.target.closest?.('#welcomeBackdrop') || event.target.closest?.('#welcomeStart')) {
+      hideWelcomePopup();
     }
-    updateClassSyncStatus();
+    if (event.target.closest?.('#endingClose')) {
+      hideEndingModal();
+    }
+    if (event.target.closest?.('#endingNewForest')) {
+      if (window.confirm('今の森はそのまま「過去の森」として残ります。新しい森をはじめますか？')) {
+        const result = core.startNewForest();
+        if (result.ok) {
+          hideEndingModal();
+          camera.zoom = 1;
+          camera.centerOnCell(map.width / 2, map.height / 2);
+          camera.clampToBounds();
+          toast(`🌱 ${result.generation}代目の森がはじまりました`);
+          refresh();
+          // クラス共有プレイなら、みんなでも同じ次代へ進めるようにサーバー側にも伝える。
+          classSync.pushStartNewForest();
+        } else {
+          toast('新しい森を始められませんでした');
+        }
+      }
+    }
   });
 
   updateClassSyncStatus();
@@ -582,19 +1179,19 @@ async function bootstrap() {
     const thanksForm = event.target.closest?.('#thanksForm');
     if (!thanksForm) return;
     event.preventDefault();
-    const nameInput = byId('thanksNameInput');
-    const name = nameInput ? nameInput.value : '';
+    const nameSelect = byId('thanksNameSelect');
+    const name = nameSelect ? nameSelect.value : '';
     const result = core.sendThanks(name, 'わたし');
     if (!result.ok) {
       const messages = {
-        empty_name: '送る相手の名前を入れてね',
+        empty_name: '送る相手を選んでね',
         already_sent_today: 'その人へは今日もう送っています',
         same_as_last: '直前と同じ人には続けて送れません'
       };
       toast(messages[result.reason] || '送れませんでした');
       return;
     }
-    if (nameInput) nameInput.value = '';
+    if (nameSelect) nameSelect.value = '';
     toast(`${result.entry.toName}さんにありがとうを送りました`);
     classSync.pushSendThanks({ toName: result.entry.toName, fromLabel: 'わたし' });
     refresh();
@@ -609,43 +1206,61 @@ async function bootstrap() {
         toast(result.reason === 'already_completed_today' ? 'きょうはもう達成しています' : 'できませんでした');
         return;
       }
-      toast(result.needsApproval ? '先生の承認をまってね' : `達成！ +${result.pointsAwarded}ポイント`);
       classSync.pushCompleteGoal(goalId);
-      refresh();
+
+      if (result.needsApproval) {
+        // 承認待ちは「まだ完了ではない」ので、達成演出は承認された時のために取っておく。
+        toast('先生の承認をまってね');
+        refresh();
+        return;
+      }
+
+      // 達成の瞬間が一番気持ちいいべきなので、テキストのトーストだけでなく
+      // カードのポップ・パーティクル・上昇アルペジオを重ねる。
+      toast(`達成！ +${result.pointsAwarded}ポイント`);
+      if (core.getState().settings?.sfx) audio.chime();
+      const card = completeBtn.closest('.goal-card');
+      card?.classList.add('goal-card--celebrate');
+      spawnCelebration(completeBtn, result.pointsAwarded);
+      pendingStatPulse = true;
+      // カードが一瞬"できた!"の表情を見せてから、通常の再描画(達成済み表示)に切り替える。
+      window.setTimeout(refresh, 420);
       return;
     }
 
     const removeBtn = event.target.closest?.('[data-goal-remove]');
     if (removeBtn) {
+      // 即削除はしない。「本当に消す？」の確認状態に切り替えるだけ。
       const goalId = removeBtn.dataset.goalRemove;
+      window.clearTimeout(confirmRemoveTimer);
+      confirmRemoveGoalId = goalId;
+      // 確認状態のまま放置されたら、事故防止のため自動でもとに戻す。
+      confirmRemoveTimer = window.setTimeout(() => {
+        confirmRemoveGoalId = null;
+        refresh();
+      }, 4000);
+      refresh();
+      return;
+    }
+
+    const removeCancelBtn = event.target.closest?.('[data-goal-remove-cancel]');
+    if (removeCancelBtn) {
+      window.clearTimeout(confirmRemoveTimer);
+      confirmRemoveGoalId = null;
+      refresh();
+      return;
+    }
+
+    const removeConfirmBtn = event.target.closest?.('[data-goal-remove-confirm]');
+    if (removeConfirmBtn) {
+      const goalId = removeConfirmBtn.dataset.goalRemoveConfirm;
+      window.clearTimeout(confirmRemoveTimer);
+      confirmRemoveGoalId = null;
       if (core.removeGoal(goalId)) {
         toast('目標をやめました');
         classSync.pushRemoveGoal(goalId);
-        refresh();
       }
-      return;
-    }
-
-    const approveBtn = event.target.closest?.('[data-goal-approve]');
-    if (approveBtn) {
-      const logId = approveBtn.dataset.goalApprove;
-      const result = core.approveGoal(logId);
-      if (result.ok) {
-        toast(`承認しました（+${result.pointsAwarded}ポイント）`);
-        classSync.pushApproveGoal(logId);
-        refresh();
-      }
-      return;
-    }
-
-    const rejectBtn = event.target.closest?.('[data-goal-reject]');
-    if (rejectBtn) {
-      const logId = rejectBtn.dataset.goalReject;
-      if (core.rejectGoal(logId).ok) {
-        toast('却下しました');
-        classSync.pushRejectGoal(logId);
-        refresh();
-      }
+      refresh();
       return;
     }
 
@@ -654,19 +1269,6 @@ async function bootstrap() {
       logExpanded = !logExpanded;
       refresh();
     }
-  });
-
-  const teacherModeChk = byId('chkTeacherMode');
-  if (teacherModeChk) {
-    teacherModeChk.addEventListener('change', () => {
-      core.setGoalApprovalMode(teacherModeChk.checked ? 'teacher' : 'self');
-      refresh();
-    });
-  }
-
-  bindButton('btnPreviewThanks', () => {
-    core.previewIncomingThanks('ともだち');
-    refresh();
   });
 
   const loop = () => {
@@ -679,6 +1281,13 @@ async function bootstrap() {
   };
 
   refresh();
+  if (core.getState().forestStatus === 'completed') {
+    // 前回のセッションで完成していた森を開いた場合は、起動画面ポップアップの代わりに
+    // 完成画面(「新しい森をはじめる」への導線)を出す。
+    showEndingModal(core.getForestSummary());
+  } else {
+    showWelcomePopup();
+  }
   requestAnimationFrame(loop);
   setInterval(() => {
     core.persist();

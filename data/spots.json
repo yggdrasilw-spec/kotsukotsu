@@ -14,10 +14,9 @@
       "y": 6,
       "priority": 1,
       "allow": [
-        "tree_small",
-        "tree_medium",
         "tree_oak_01",
-        "tree_birch_01"
+        "tree_birch_01",
+        "tree_pine_01"
       ],
       "maxCount": 1,
       "occupied": false,

@@ -6,9 +6,9 @@ export class InteractionController {
     core,
     onDirty = () => {},
     onCameraChange = () => {},
-    onSelect = () => {},
     onToast = () => {},
-    onPlace = () => {}
+    onPlace = () => {},
+    onPlacedInfo = () => {}
   } = {}) {
     this.viewportEl = viewportEl;
     this.camera = camera;
@@ -20,8 +20,9 @@ export class InteractionController {
     // 含むフルの再描画(onDirty)ではなく、カメラのtransformだけを更新する
     // 軽量な経路(onCameraChange)を使う。
     this.onCameraChange = onCameraChange;
-    this.onSelect = onSelect;
     this.onToast = onToast;
+    // 森に既に置かれている花などをタップしたとき、詳細ポップアップを開くための通知先。
+    this.onPlacedInfo = onPlacedInfo;
 
     this.dragging = false;
     this.dragMoved = false;
@@ -103,7 +104,7 @@ export class InteractionController {
       return;
     }
 
-    const target = event.target.closest?.('[data-asset-id], [data-animal-id]');
+    const target = event.target.closest?.('[data-placed-id], [data-animal-id]');
 
     if (target?.dataset?.animalId) {
       const result = this.core.clickAnimal(target.dataset.animalId);
@@ -112,8 +113,10 @@ export class InteractionController {
       return;
     }
 
-    if (target?.dataset?.assetId) {
-      this.onSelect(target.dataset.assetId);
+    // 森に既に置かれている花などをタップ → 「だれが/いつ/どんな目標のときに置いたか」の詳細を表示。
+    // (素材を選び直したいときはパレット側のボタンを使う。ここは「置いたあとの物」専用。)
+    if (target?.dataset?.placedId) {
+      this.onPlacedInfo(target.dataset.placedId);
       return;
     }
 

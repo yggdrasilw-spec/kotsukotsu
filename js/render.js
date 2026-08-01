@@ -1,3 +1,5 @@
+import { computeProgressPercent } from './core-runtime.js';
+
 function escapeHtml(text) {
   return String(text ?? '')
     .replaceAll('&', '&amp;')
@@ -6,13 +8,20 @@ function escapeHtml(text) {
     .replaceAll('"', '&quot;');
 }
 
+// 固定文言(こちらで書いた漢字)にふりがなを付けるための小さなヘルパー。
+// 表示/非表示自体はCSS側(#app.furigana-on)で切り替えるので、常にrubyを出力してよい。
+// ※ユーザー入力(目標タイトルなど)には使わない。あくまでこちらの書いた文言専用。
+function rb(kanji, reading) {
+  return `<ruby>${kanji}<rt>${reading}</rt></ruby>`;
+}
+
 // asset.emoji があればプレースホルダーとして絵文字表示、無ければ実画像を使う。
 // 本物の画像が揃ったら assets.json から emoji フィールドを外すだけで、
 // ここは自動的に image 側へ切り替わる。
 function resolveVisual(asset) {
-  if (!asset) return { image: '', glyph: '' };
-  if (asset.emoji) return { image: '', glyph: asset.emoji };
-  return { image: asset.image ? `assets/${asset.image}` : '', glyph: '' };
+  if (!asset) return { image: '', glyph: '', color: '' };
+  if (asset.emoji) return { image: '', glyph: asset.emoji, color: asset.placeholderColor || '' };
+  return { image: asset.image ? `assets/${asset.image}` : '', glyph: '', color: asset.placeholderColor || '' };
 }
 
 function assetSize(asset, cellSize) {
@@ -41,7 +50,7 @@ function assetPosition(item, asset, cellSize) {
   };
 }
 
-function makeNodeHtml({ id, title, image, glyph = '', className = '', left, top, width, height, layer, extraData = '', label = '', tileSize = null, glyphColor = '' }) {
+function makeNodeHtml({ id, title, image, glyph = '', className = '', left, top, width, height, layer, extraData = '', label = '', tileSize = null, glyphColor = '', color = '' }) {
   const style = [
     `left:${left}px`,
     `top:${top}px`,
@@ -72,7 +81,8 @@ function makeNodeHtml({ id, title, image, glyph = '', className = '', left, top,
     style.push('background-repeat:no-repeat', 'background-size:contain');
   }
   const styleStr = style.join(';');
-  const bg = image ? `style="background-image:url('${image}');${styleStr}"` : `style="${styleStr}"`;
+  const colorStyle = color ? `background-color:${color};` : '';
+  const bg = image ? `style="${colorStyle}background-image:url('${image}');${styleStr}"` : `style="${styleStr}"`;
   return `
     <div class="forest-node ${className}" data-id="${escapeHtml(id)}" data-layer="${escapeHtml(layer)}" title="${escapeHtml(title)}" ${bg} ${extraData}>
       <div class="forest-node__label">${escapeHtml(label || title)}</div>
@@ -174,7 +184,7 @@ export function createForestRenderer({
       if (shouldTile && (asset?.placeholderColor || glyph)) {
         // 絵文字1文字をタイルとして敷き詰めるのは見た目が破綻するため、
         // 代わりにベタ塗りの色で代用する(本物の画像が揃ったら自動でこの分岐を通らなくなる)。
-        styleParts.push(`background:${asset?.placeholderColor || '#cfe8b8'}`);
+        styleParts.push(`background-color:${asset?.placeholderColor || '#cfe8b8'}`);
         return `
           <div class="forest-node forest-node--terrain forest-node--${escapeHtml(item.type || 'terrain')}"
                data-terrain-id="${escapeHtml(item.id)}"
@@ -223,19 +233,20 @@ export function createForestRenderer({
     return placedAssets.map((item, index) => {
       const asset = assetById.get(item.assetId) || null;
       const pos = assetPosition(item, asset, camera.cellSize);
-      const { image, glyph } = resolveVisual(asset);
+      const { image, glyph, color } = resolveVisual(asset);
       return makeNodeHtml({
         id: `placed-${index}`,
         title: `${asset?.name || item.assetId || 'asset'}`,
         image,
         glyph,
+        color,
         className: `forest-node--asset forest-node--${escapeHtml(asset?.type || 'unknown')}`,
         left: pos.left,
         top: pos.top,
         width: pos.width,
         height: pos.height,
         layer: asset?.layer || 'asset',
-        extraData: `data-asset-id="${escapeHtml(item.assetId)}" data-placed-index="${index}"`,
+        extraData: `data-placed-id="${escapeHtml(item.placedId || '')}" data-asset-id="${escapeHtml(item.assetId)}"`,
         label: asset?.name || item.assetId
       });
     }).join('');
@@ -246,12 +257,13 @@ export function createForestRenderer({
     return animals.map((animal) => {
       const asset = assetById.get(animal.assetId) || null;
       const pos = assetPosition(animal, asset, camera.cellSize);
-      const { image, glyph } = resolveVisual(asset);
+      const { image, glyph, color } = resolveVisual(asset);
       return makeNodeHtml({
         id: animal.id,
         title: `${asset?.name || animal.assetId || 'animal'}`,
         image,
         glyph,
+        color,
         className: `forest-node--animal forest-node--${escapeHtml(asset?.type || 'animal')} forest-node--dir-${escapeHtml(animal.direction || 'right')}`,
         left: pos.left,
         top: pos.top,
@@ -266,7 +278,7 @@ export function createForestRenderer({
 
   function renderPalette(state) {
     const owned = new Set([...(state?.ownedAssets || []), ...(state?.shopPurchased || [])]);
-    const progress = Number(state?.classPoints || 0);
+    const progress = computeProgressPercent(state);
     const shopItems = Array.isArray(state?.shopItems) ? state.shopItems : [];
     const shopAssetIds = new Set(shopItems.map((item) => item.assetId));
 
@@ -282,40 +294,53 @@ export function createForestRenderer({
 
     const sections = [];
     for (const [category, items] of grouped.entries()) {
-      const cards = items.map((asset) => {
+      // 情報量を減らすため、いま置ける物だけをカードで見せ、まだ解放されていない物は
+      // 1件ずつのロックカードにせず「あと◯こ」の折りたたみへまとめる。
+      // (低学年・支援級での利用を想定。docs/14, docs/15参照)
+      const usable = [];
+      const locked = [];
+      items.forEach((asset) => {
         const isOwned = owned.has(asset.id);
         const requiresShop = shopAssetIds.has(asset.id);
         const unlockedByProgress = progress >= Number(asset.unlock || 0);
-        // ショップ商品があるアセットは購入済みでないと置けない。
-        // ショップ商品がない無料アセット（地形など）は進行度だけで解放される。
         const canPlace = isOwned || (!requiresShop && unlockedByProgress);
-        const statusLabel = isOwned
-          ? ''
-          : requiresShop
-            ? 'ショップで購入'
-            : unlockedByProgress
-              ? ''
-              : '未解放';
-        const { image, glyph } = resolveVisual(asset);
+        (canPlace ? usable : locked).push({ asset, isOwned, requiresShop, unlock: Number(asset.unlock || 0) });
+      });
+
+      const cards = usable.map(({ asset, isOwned }) => {
+        const { image, glyph, color } = resolveVisual(asset);
+        // 画像(image)が404などで表示できなくても、絵文字(glyph)も無ければ最低限
+        // placeholderColorのベタ塗りで「何も無い空白ボタン」に見えないようにする。
         const thumb = glyph
           ? `<div class="asset-card__thumb asset-card__thumb--glyph"><span>${escapeHtml(glyph)}</span></div>`
-          : `<div class="asset-card__thumb" style="background-image:url('${image}')"></div>`;
+          : `<div class="asset-card__thumb" style="background-color:${color || '#dcefc9'};background-image:url('${image}')"></div>`;
         return `
-          <button class="asset-card ${canPlace ? '' : 'is-locked'} ${isOwned ? 'is-owned' : ''}"
+          <button class="asset-card ${isOwned ? 'is-owned' : ''}"
                   data-select-asset="${escapeHtml(asset.id)}"
                   data-asset-type="${escapeHtml(asset.type || '')}"
-                  title="${escapeHtml(asset.description || asset.name || asset.id)}"
-                  ${canPlace ? '' : 'disabled'}>
+                  title="${escapeHtml(asset.description || asset.name || asset.id)}">
             ${thumb}
             <div class="asset-card__name">${escapeHtml(asset.name || asset.id)}</div>
-            <div class="asset-card__meta">${statusLabel ? escapeHtml(statusLabel) : escapeHtml(asset.id)}</div>
           </button>
         `;
       }).join('');
+
+      const lockedHtml = locked.length
+        ? `
+          <details class="palette-section__locked">
+            <summary>🔒 まだ${locked.length}こ（タップで見る）</summary>
+            <div class="palette-section__locked-list">
+              ${locked.map(({ asset, requiresShop, unlock }) => `<span class="asset-chip">${escapeHtml(asset.name || asset.id)}${requiresShop ? '（ショップ）' : `（解放 ${unlock}%）`}</span>`).join('')}
+            </div>
+          </details>
+        `
+        : '';
+
       sections.push(`
         <section class="palette-section">
           <h3>${escapeHtml(category)}</h3>
-          <div class="palette-grid">${cards}</div>
+          <div class="palette-grid">${cards || '<p class="muted">つかえるアイテムがまだありません。</p>'}</div>
+          ${lockedHtml}
         </section>
       `);
     }
@@ -325,7 +350,7 @@ export function createForestRenderer({
 
   function renderShop(state) {
     const items = Array.isArray(state?.shopItems) ? state.shopItems : [];
-    const progress = Number(state?.classPoints || 0);
+    const progress = computeProgressPercent(state);
     const points = Number(state?.personalPoints || 0);
     const purchased = new Set(Array.isArray(state?.shopPurchased) ? state.shopPurchased : []);
     if (!items.length) return '<p class="muted">ショップ商品がまだありません。</p>';
@@ -338,59 +363,140 @@ export function createForestRenderer({
     });
 
     return [...sections.entries()].map(([category, entries]) => {
-      const cards = entries.map((item) => {
+      // パレットと同じ考え方: まだ解放されていない商品はカードを並べず、
+      // 「あと◯こ」の折りたたみへまとめて情報量を抑える。
+      const visible = [];
+      const locked = [];
+      entries.forEach((item) => {
         const unlocked = progress >= Number(item?.unlockCondition?.progress || 0);
+        (unlocked ? visible : locked).push(item);
+      });
+
+      const cards = visible.map((item) => {
         const price = Number(item?.price || 0);
-        const canBuy = unlocked && !purchased.has(item.id) && points >= price;
         const owned = purchased.has(item.id);
+        const canBuy = !owned && points >= price;
         const asset = assetById.get(item.assetId) || null;
-        const { image, glyph } = resolveVisual(asset);
+        const { image, glyph, color } = resolveVisual(asset);
         const icon = glyph
           ? `<div class="shop-card__icon shop-card__icon--glyph"><span>${escapeHtml(glyph)}</span></div>`
-          : image
-            ? `<div class="shop-card__icon" style="background-image:url('${image}')"></div>`
-            : '';
+          : `<div class="shop-card__icon" style="background-color:${color || '#dcefc9'};background-image:url('${image}')"></div>`;
         return `
-          <div class="shop-card ${unlocked ? '' : 'is-locked'} ${owned ? 'is-owned' : ''}">
+          <div class="shop-card ${owned ? 'is-owned' : ''}">
             ${icon}
-            <div class="shop-card__name">${escapeHtml(item.name || item.id)}</div>
-            <div class="shop-card__meta">価格 ${price} / 解放 ${Number(item?.unlockCondition?.progress || 0)}</div>
-            <div class="shop-card__desc">${escapeHtml(item.description || '')}</div>
-            <button class="btn shop-card__buy" data-buy-shop="${escapeHtml(item.id)}" ${canBuy ? '' : 'disabled'}>${owned ? '購入済み' : unlocked ? '購入' : '未解放'}</button>
+            <div class="shop-card__name" title="${escapeHtml(item.description || '')}">${escapeHtml(item.name || item.id)}</div>
+            <div class="shop-card__meta">${owned ? '購入ずみ' : `${price}ポイント`}</div>
+            <button class="btn shop-card__buy" data-buy-shop="${escapeHtml(item.id)}" ${owned || !canBuy ? 'disabled' : ''}>${owned ? '購入済み' : '購入'}</button>
           </div>
         `;
       }).join('');
+
+      const lockedHtml = locked.length
+        ? `
+          <details class="shop-section__locked">
+            <summary>🔒 まだ${locked.length}こ（タップで見る）</summary>
+            <div class="shop-section__locked-list">
+              ${locked.map((item) => `<span class="asset-chip">${escapeHtml(item.name || item.id)}（解放 ${Number(item?.unlockCondition?.progress || 0)}%）</span>`).join('')}
+            </div>
+          </details>
+        `
+        : '';
+
       return `
         <section class="shop-section">
           <h3>${escapeHtml(category)}</h3>
-          <div class="shop-grid">${cards}</div>
+          <div class="shop-grid">${cards || ''}</div>
+          ${lockedHtml}
         </section>
       `;
     }).join('');
   }
 
   // 目標パネル: 一覧＋クリアボタン＋新規作成フォーム。
+  // 目標カード1つぶんの「できた/待ち/あと」を、数字だけでなく丸の並びで見せる。
+  // 低学年でも一瞬で「あと何回か」が分かるようにするための視覚化(文字は補助情報として残す)。
+  function renderGoalDots(g) {
+    const total = Math.max(1, Number(g.targetCount) || 1);
+    let dots = '';
+    for (let i = 0; i < total; i++) {
+      if (i < g.done) dots += '<span class="goal-dot goal-dot--done">●</span>';
+      else if (i < g.done + g.pending) dots += '<span class="goal-dot goal-dot--pending">◐</span>';
+      else dots += '<span class="goal-dot goal-dot--empty">○</span>';
+    }
+    return `<div class="goal-dots">${dots}</div>`;
+  }
+
+  // 目標が複数あっても「今、全体でどれだけ進んでいるか」を1枚で見せるための小さなヘッダー。
+  // 個々の目標カードより上に表示し、パーセントより「あと何個」を主役にする
+  // (小さい子には割合よりも実際に残っている数のほうが分かりやすいため)。
+  function renderGoalTodayHero(goals) {
+    if (!goals.length) return '';
+    const totalDone = goals.reduce((sum, g) => sum + g.done, 0);
+    const totalPending = goals.reduce((sum, g) => sum + g.pending, 0);
+    const totalTarget = goals.reduce((sum, g) => sum + g.targetCount, 0);
+    const remaining = Math.max(0, totalTarget - totalDone - totalPending);
+    const pct = totalTarget ? Math.round((totalDone / totalTarget) * 100) : 0;
+
+    let sub;
+    if (totalTarget > 0 && totalDone >= totalTarget) {
+      sub = `<span class="goal-today-hero__sub goal-today-hero__sub--done">今日は${rb('全部', 'ぜんぶ')}できたよ！🎉</span>`;
+    } else if (remaining === 1) {
+      sub = `<span class="goal-today-hero__sub goal-today-hero__sub--last">あと<strong>1</strong>つ！</span>`;
+    } else {
+      sub = `<span class="goal-today-hero__sub">あと <strong>${remaining}</strong> つ</span>`;
+    }
+    const pendingNote = totalPending
+      ? `<span class="goal-today-hero__pending">${rb('承認', 'しょうにん')}待ち ${totalPending}</span>`
+      : '';
+
+    return `
+      <div class="goal-today-hero">
+        <div class="goal-today-hero__ring" style="--pct: ${pct}%;">
+          <span class="goal-today-hero__pct">${totalDone}/${totalTarget}</span>
+        </div>
+        <div class="goal-today-hero__text">
+          <div class="goal-today-hero__label">${rb('今日', 'きょう')}のがんばり</div>
+          ${sub}
+          ${pendingNote}
+        </div>
+      </div>
+    `;
+  }
+
   function renderGoals(state) {
     const goals = Array.isArray(state?.goalsView) ? state.goalsView : [];
     const settings = state?.goalSettings || { maxGoals: 3, approvalMode: 'self' };
     const canAddMore = goals.length < Number(settings.maxGoals || 3);
+    const confirmRemoveGoalId = state?.confirmRemoveGoalId || null;
+
+    const hero = renderGoalTodayHero(goals);
 
     const rows = goals.length
       ? goals.map((g) => {
           const full = g.done + g.pending >= g.targetCount;
-          const label = g.pending > 0 ? '承認待ち…' : full ? 'きょうは達成！' : 'クリア';
+          const label = g.pending > 0 ? `${rb('承認', 'しょうにん')}待ち…` : full ? `きょうは${rb('達成', 'たっせい')}！` : 'クリア';
+          // 「やめる」は取り消せない操作なので、1タップ目では消さずに
+          // 「本当に消す？」の確認状態に切り替え、2タップ目で初めて削除する。
+          // 誤タップでも「やめない」であっさり戻れるようにする。
+          const removeActions = confirmRemoveGoalId === g.id
+            ? `
+              <button class="btn btn--danger btn--small" data-goal-remove-confirm="${escapeHtml(g.id)}">${rb('本当', 'ほんとう')}に${rb('消', 'け')}す</button>
+              <button class="btn btn--ghost btn--small" data-goal-remove-cancel="${escapeHtml(g.id)}">やめない</button>
+            `
+            : `<button class="btn btn--ghost" data-goal-remove="${escapeHtml(g.id)}">やめる</button>`;
           return `
-            <div class="goal-card">
+            <div class="goal-card${full ? ' goal-card--full' : ''}">
               <div class="goal-card__title">${escapeHtml(g.title)}</div>
-              <div class="goal-card__meta">きょう ${g.done}/${g.targetCount}${g.pending ? `（承認待ち ${g.pending}）` : ''}</div>
-              <div class="goal-card__actions">
+              ${renderGoalDots(g)}
+              <div class="goal-card__meta">きょう ${g.done}/${g.targetCount}${g.pending ? `（${rb('承認', 'しょうにん')}待ち ${g.pending}）` : ''}</div>
+              <div class="goal-card__actions${confirmRemoveGoalId === g.id ? ' goal-card__actions--confirm' : ''}">
                 <button class="btn" data-goal-complete="${escapeHtml(g.id)}" ${full ? 'disabled' : ''}>${label}</button>
-                <button class="btn btn--ghost" data-goal-remove="${escapeHtml(g.id)}">やめる</button>
+                ${removeActions}
               </div>
             </div>
           `;
         }).join('')
-      : '<p class="muted">まだ目標がありません。下から作ってみよう。</p>';
+      : `<p class="muted">まだ${rb('目標', 'もくひょう')}がありません。下から作ってみよう。</p>`;
 
     const form = canAddMore
       ? `
@@ -402,41 +508,24 @@ export function createForestRenderer({
             <option value="3">1日3回</option>
             <option value="5">1日5回</option>
           </select>
-          <button type="submit" class="btn">目標をつくる</button>
+          <button type="submit" class="btn">${rb('目標', 'もくひょう')}をつくる</button>
         </form>
       `
-      : `<p class="muted">目標は最大${Number(settings.maxGoals || 3)}個までです。</p>`;
+      : `<p class="muted">${rb('目標', 'もくひょう')}は${rb('最大', 'さいだい')}${Number(settings.maxGoals || 3)}${rb('個', 'こ')}までです。</p>`;
 
     const modeNote = settings.approvalMode === 'teacher'
-      ? '<p class="muted">今は先生の承認があるとポイントがもらえます。</p>'
+      ? `<p class="muted">${rb('今', 'いま')}は${rb('先生', 'せんせい')}の${rb('承認', 'しょうにん')}があるとポイントがもらえます。</p>`
       : '';
 
-    return `${rows}${form}${modeNote}`;
-  }
-
-  // 先生承認待ち一覧。1件ずつ承認/却下する(一括承認はしない)。
-  function renderApprovals(state) {
-    const pending = Array.isArray(state?.pendingApprovalsView) ? state.pendingApprovalsView : [];
-    if (state?.goalSettings?.approvalMode !== 'teacher') {
-      return '<p class="muted">今は自己判定モードです。先生承認は使われていません。</p>';
-    }
-    if (!pending.length) return '<p class="muted">承認待ちの目標はありません。</p>';
-    return pending.map((entry) => `
-      <div class="goal-card">
-        <div class="goal-card__title">${escapeHtml(entry.goalTitle || '')}</div>
-        <div class="goal-card__meta">${escapeHtml(entry.date)} に達成報告</div>
-        <div class="goal-card__actions">
-          <button class="btn" data-goal-approve="${escapeHtml(entry.id)}">承認</button>
-          <button class="btn btn--ghost" data-goal-reject="${escapeHtml(entry.id)}">却下</button>
-        </div>
-      </div>
-    `).join('');
+    return `${hero}${rows}${form}${modeNote}`;
   }
 
   function renderStatus(state) {
     const personalPoints = Number(state?.personalPoints || 0);
     const lifetimePoints = Number(state?.lifetimePoints || 0);
     const classPoints = Number(state?.classPoints || 0);
+    const clearPoint = Number(state?.classInfo?.clearPoint || 100);
+    const progressPercent = computeProgressPercent(state);
     const season = state?.settings?.season || 'spring';
     const ownedCount = Array.isArray(state?.ownedAssets) ? state.ownedAssets.length : 0;
     const placedCount = Array.isArray(state?.placedAssets) ? state.placedAssets.length : 0;
@@ -445,13 +534,71 @@ export function createForestRenderer({
     return `
       <div class="stat-row"><span>所持ポイント</span><strong>${personalPoints}</strong></div>
       <div class="stat-row"><span>累積ポイント</span><strong>${lifetimePoints}</strong></div>
-      <div class="stat-row"><span>クラスポイント</span><strong>${classPoints}</strong></div>
+      <div class="stat-row"><span>クラスポイント</span><strong>${classPoints} / ${clearPoint}</strong></div>
+      <div class="stat-row"><span>森の進み具合</span><strong>${Math.floor(progressPercent)}%</strong></div>
+      <div class="stat-row"><span>森の代</span><strong>${Number(state?.forestGeneration || 1)}代目</strong></div>
       <div class="stat-row"><span>季節</span><strong>${escapeHtml(season)}</strong></div>
       <div class="stat-row"><span>所持アセット</span><strong>${ownedCount}</strong></div>
       <div class="stat-row"><span>配置数</span><strong>${placedCount}</strong></div>
       <div class="stat-row"><span>動物</span><strong>${animalsCount}</strong></div>
       <div class="stat-row"><span>バッジ</span><strong>${badgeCount}</strong></div>
     `;
+  }
+
+  // 「クラスのちから」パネル(クラス協力の意味づけ強化・v22)。
+  // 個人の進行度ではなく、「今日、クラスみんなでどれだけ森を育てたか」を主役にする。
+  // 目標達成/承認のたびにGAS側(announceContribution)がactivityLogへ
+  // type:'contribution'/'contribution_milestone' で actorName/points/progress を記録してくれる
+  // ので、ここではそれを今日の分だけ集計して見せる。
+  function renderClassPower(state) {
+    // GAS未接続(ローカル単独プレイ)では「クラス」という概念自体が無いので出さない。
+    if (!Array.isArray(state?.classmates)) {
+      return '<p class="muted">🔒 クラスのみんなとつながると、今日のがんばりがここに集まるよ。</p>';
+    }
+
+    const log = Array.isArray(state.activityLog) ? state.activityLog : [];
+    const todayKey = formatDateKey(new Date());
+    const todays = log.filter((e) => {
+      if (e?.type !== 'contribution' && e?.type !== 'contribution_milestone') return false;
+      return formatDateKey(new Date(e.createdAt)) === todayKey;
+    });
+
+    if (!todays.length) {
+      return '<p class="muted">まだ今日の記録はありません。目標をクリアすると、ここにクラスみんなのがんばりが集まるよ。</p>';
+    }
+
+    const totalPoints = todays.reduce((sum, e) => sum + (Number(e.points) || 0), 0);
+    const milestoneCount = todays.filter((e) => e.type === 'contribution_milestone').length;
+
+    const countByName = new Map();
+    for (const e of todays) {
+      const name = e.actorName || 'クラスの子';
+      countByName.set(name, (countByName.get(name) || 0) + 1);
+    }
+    const ranked = [...countByName.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const chips = ranked.map(([name, count]) => `
+      <span class="class-power__chip">${escapeHtml(name)}さん<span class="class-power__chip-count">×${count}</span></span>
+    `).join('');
+
+    const milestoneNote = milestoneCount
+      ? `<p class="class-power__milestone">🌟 今日は${milestoneCount}回、森が育つ「最後のひと押し」がありました</p>`
+      : '';
+
+    return `
+      <div class="class-power">
+        <div class="class-power__today">
+          <span class="class-power__today-label">今日、クラスみんなで</span>
+          <strong class="class-power__today-value">+${totalPoints}pt</strong>
+        </div>
+        ${milestoneNote}
+        <div class="class-power__chips">${chips}</div>
+      </div>
+    `;
+  }
+
+  function formatDateKey(d) {
+    if (Number.isNaN(d.getTime())) return '';
+    return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
   }
 
   function renderEventLog(state, expanded = false) {
@@ -481,13 +628,33 @@ export function createForestRenderer({
   function renderBadgePanel(badgeState = []) {
     const badges = Array.isArray(badgeState) ? badgeState : [];
     if (!badges.length) return '<p class="muted">まだバッジはありません。</p>';
-    return badges.map((badge) => `
-      <div class="badge-card ${badge.unlocked ? 'is-unlocked' : 'is-locked'}">
-        <div class="badge-card__name">${escapeHtml(badge.name || badge.id)}</div>
-        <div class="badge-card__meta">${badge.unlocked ? '達成' : '未達成'}</div>
-        <div class="badge-card__desc">${escapeHtml(badge.description || '')}</div>
-      </div>
-    `).join('');
+
+    const unlocked = badges.filter((b) => b.unlocked);
+    const locked = badges.filter((b) => !b.unlocked);
+
+    const unlockedHtml = unlocked.length
+      ? unlocked.map((badge) => `
+          <div class="badge-card is-unlocked">
+            <div class="badge-card__name">🏅 ${escapeHtml(badge.name || badge.id)}</div>
+            <div class="badge-card__desc">${escapeHtml(badge.description || '')}</div>
+          </div>
+        `).join('')
+      : '<p class="muted">まだバッジはありません。がんばろう！</p>';
+
+    // 未達成バッジは、内容の説明文まで並べると重くなる上にネタバレにもなるので、
+    // 「あと◯こ」の折りたたみに名前だけまとめる。
+    const lockedHtml = locked.length
+      ? `
+        <details class="badge-panel__locked">
+          <summary>🔒 あと${locked.length}つ（タップで見る）</summary>
+          <div class="badge-panel__locked-list">
+            ${locked.map((b) => `<span class="asset-chip">${escapeHtml(b.name || b.id)}</span>`).join('')}
+          </div>
+        </details>
+      `
+      : '';
+
+    return `${unlockedHtml}${lockedHtml}`;
   }
 
   // 地形(terrain)は map.json 由来で実行中に変化しないため、初回だけ組み立てて
@@ -546,7 +713,7 @@ export function createForestRenderer({
       badgeHtml: renderBadgePanel(state?.evaluatedBadges || []),
       shopHtml: renderShop(state),
       goalHtml: renderGoals(state),
-      approvalHtml: renderApprovals(state),
+      classPowerHtml: renderClassPower(state),
       visibleRect: camera.getVisibleRect()
     };
   }
@@ -562,6 +729,7 @@ export function createForestRenderer({
     renderStatus,
     renderEventLog,
     renderBadgePanel,
-    renderShop
+    renderShop,
+    renderClassPower
   };
 }

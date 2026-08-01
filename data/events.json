@@ -1,8 +1,8 @@
 {
   "meta": {
     "project": "kokotsu_forest",
-    "version": "0.1",
-    "notes": "112px基準の暫定正式版 events.json"
+    "version": "0.2",
+    "notes": "112px基準の正式版 events.json。仕様どおり5%刻み(5〜100)を全て埋めてある。progressはclearPointに対する割合(0-100)で、ForestCore側でクラスポイント÷clearPoint×100と比較する。shop.json / assets.jsonのunlockしきい値と揃えてあるので、その%に届くと同時に「見た目の演出」と「置けるようになる物」が一致する。"
   },
   "events": [
     {
@@ -36,6 +36,16 @@
       "effect": "grow"
     },
     {
+      "id": "event_20",
+      "progress": 20,
+      "title": "森の音が聞こえる",
+      "type": "story",
+      "priority": 1,
+      "applyOnce": true,
+      "message": "葉のこすれる音や、小さな生き物の気配が感じられるようになった",
+      "effect": "sparkle"
+    },
+    {
       "id": "event_25",
       "progress": 25,
       "title": "小道ができる",
@@ -56,6 +66,36 @@
       "effect": "sparkle"
     },
     {
+      "id": "event_35",
+      "progress": 35,
+      "title": "岩が顔を出す",
+      "type": "visual",
+      "priority": 1,
+      "applyOnce": true,
+      "message": "苔むした岩や切り株が森のあちこちに増えてきた",
+      "effect": "fadeIn"
+    },
+    {
+      "id": "event_40",
+      "progress": 40,
+      "title": "虫たちが集まりだす",
+      "type": "visual",
+      "priority": 1,
+      "applyOnce": true,
+      "message": "花のまわりにハチやチョウが遊びに来るようになった",
+      "effect": "bounce"
+    },
+    {
+      "id": "event_45",
+      "progress": 45,
+      "title": "きのこが仲間を増やす",
+      "type": "visual",
+      "priority": 1,
+      "applyOnce": true,
+      "message": "きのこの群れとトンボが森を彩りはじめた",
+      "effect": "grow"
+    },
+    {
       "id": "event_50",
       "progress": 50,
       "title": "池が現れる",
@@ -64,6 +104,16 @@
       "applyOnce": true,
       "message": "森に水辺が生まれた",
       "effect": "ripple"
+    },
+    {
+      "id": "event_55",
+      "progress": 55,
+      "title": "小鳥がやってくる",
+      "type": "story",
+      "priority": 1,
+      "applyOnce": true,
+      "message": "池のまわりに小鳥の声がひびくようになった",
+      "effect": "bounce"
     },
     {
       "id": "event_60",
@@ -76,6 +126,36 @@
       "effect": "bounce"
     },
     {
+      "id": "event_65",
+      "progress": 65,
+      "title": "新しい木が仲間入り",
+      "type": "visual",
+      "priority": 1,
+      "applyOnce": true,
+      "message": "白い木や針葉樹が森の景色に加わった",
+      "effect": "grow"
+    },
+    {
+      "id": "event_70",
+      "progress": 70,
+      "title": "うさぎとかえるが遊びに来る",
+      "type": "story",
+      "priority": 1,
+      "applyOnce": true,
+      "message": "森の奥からうさぎとかえるが遊びに来るようになった",
+      "effect": "bounce"
+    },
+    {
+      "id": "event_75",
+      "progress": 75,
+      "title": "森が輝きだす",
+      "type": "visual",
+      "priority": 1,
+      "applyOnce": true,
+      "message": "夕方になると、森のあちこちがやさしく光るようになった",
+      "effect": "sparkle"
+    },
+    {
       "id": "event_80",
       "progress": 80,
       "title": "虹が出る",
@@ -84,6 +164,36 @@
       "applyOnce": true,
       "message": "特別な日には虹が見える",
       "effect": "rainbow"
+    },
+    {
+      "id": "event_85",
+      "progress": 85,
+      "title": "森じゅうがにぎやかになる",
+      "type": "story",
+      "priority": 1,
+      "applyOnce": true,
+      "message": "森じゅうの生き物たちが、にぎやかに過ごすようになった",
+      "effect": "ripple"
+    },
+    {
+      "id": "event_90",
+      "progress": 90,
+      "title": "特別な光が差し込む",
+      "type": "story",
+      "priority": 1,
+      "applyOnce": true,
+      "message": "木々のすきまから、いつもより特別な光が差し込んでいる",
+      "effect": "sparkle"
+    },
+    {
+      "id": "event_95",
+      "progress": 95,
+      "title": "完成まであと少し",
+      "type": "story",
+      "priority": 1,
+      "applyOnce": true,
+      "message": "森の完成まで、あと少しのところまで来た",
+      "effect": "fadeIn"
     },
     {
       "id": "event_100",

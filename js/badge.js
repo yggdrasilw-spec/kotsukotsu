@@ -1,4 +1,4 @@
-import { isBadgeUnlocked } from './core-runtime.js';
+import { isBadgeUnlocked, computeProgressPercent } from './core-runtime.js';
 
 // バッジパネルの表示専用。実際の進行(バッジ獲得・報酬付与)は
 // core-runtime.js の ForestCore.syncMilestones() が行う。
@@ -15,11 +15,11 @@ export class BadgeManager {
   }
 
   evaluate(state) {
-    const points = Number(state?.classPoints || 0);
+    const percent = computeProgressPercent(state);
     const completedEvents = new Set(state?.completedEvents || []);
     return this.badges.map((badge) => ({
       ...badge,
-      unlocked: isBadgeUnlocked(badge, points, completedEvents)
+      unlocked: isBadgeUnlocked(badge, percent, completedEvents)
     }));
   }
 }

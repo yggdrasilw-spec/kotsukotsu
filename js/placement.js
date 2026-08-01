@@ -62,6 +62,25 @@ export class PlacementManager {
     return best;
   }
 
+  // 1マスに複数置けるスポット(花・きのこ等、maxCount>1)では、全員が同じ座標に
+  // 重なって見えてしまうと「置いたのに増えて見えない」状態になる。
+  // そこで、そのスポットに何個目かに応じて、マス内の決まった位置へ少しずつ
+  // ずらして配置する(毎回ランダムだと再読込のたびに散らばり方が変わって不自然なので、
+  // 個数に応じた固定パターンを使う)。
+  static SCATTER_OFFSETS = [
+    { x: 0, y: 0 },
+    { x: -0.22, y: -0.1 },
+    { x: 0.22, y: -0.1 },
+    { x: -0.18, y: 0.16 },
+    { x: 0.18, y: 0.16 },
+    { x: 0, y: -0.24 }
+  ];
+
+  getScatterOffset(index) {
+    const table = PlacementManager.SCATTER_OFFSETS;
+    return table[index % table.length];
+  }
+
   placeAtCell(core, assetId, cellX, cellY) {
     const asset = this.assets.find((a) => a.id === assetId);
     if (!asset) {
@@ -74,8 +93,14 @@ export class PlacementManager {
       ? (spotId) => core.isSpotAvailable(spotId)
       : () => true;
     const spot = this.findSpotForAsset(asset, cellX, cellY, isSpotAvailable);
-    const targetX = spot ? spot.x : cellX;
-    const targetY = spot ? spot.y : cellY;
+    let targetX = spot ? spot.x : cellX;
+    let targetY = spot ? spot.y : cellY;
+    if (spot && Number(spot.maxCount || 1) > 1 && typeof core.countPlacedAtSpot === 'function') {
+      const occupantIndex = core.countPlacedAtSpot(spot.id);
+      const offset = this.getScatterOffset(occupantIndex);
+      targetX = spot.x + offset.x;
+      targetY = spot.y + offset.y;
+    }
     const result = core.placeAsset(assetId, spot ? spot.id : null, targetX, targetY);
     if (!result.ok) {
       return { ok: false, reason: result.reason || 'place_failed' };

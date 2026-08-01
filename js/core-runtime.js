@@ -39,6 +39,27 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+// 進行度(%)の計算をここ一箇所にまとめる。
+// events.json / badges.json / shop.json / assets.json の各しきい値は
+// すべて「0〜100の割合」で書かれている前提なので、実際の判定は
+// 生のclassPoints同士ではなく、必ずこの%へ変換してから比較する。
+// clearPoint(完全クリアに必要なクラスポイント)は先生がteacher.htmlで
+// 設定できる値(state.classInfo.clearPoint)で、GAS未接続のローカル単独時は
+// 既定値100を使う(=旧バージョンの「classPointsをそのまま%として扱う」挙動と互換)。
+export function computeProgressPercent(state) {
+  const clearPoint = numberOrZero(state?.classInfo?.clearPoint) || 100;
+  const percent = (numberOrZero(state?.classPoints) / clearPoint) * 100;
+  return clamp(Math.round(percent * 10) / 10, 0, 100);
+}
+
+// 起動画面ポップアップ用の一言。連続ログイン日数と、きのうの活動量に応じて変える。
+function pickEncouragement(streak, yesterdayCount) {
+  if (streak >= 7) return `${streak}日連続で森に来てくれてありがとう！すごい記録だね`;
+  if (streak >= 3) return `${streak}日連続だね。その調子でコツコツ育てよう`;
+  if (yesterdayCount > 0) return 'きのうもがんばったね。今日も森に会いにきてくれてありがとう';
+  return '今日も森に来てくれてありがとう。コツコツ育てていこう';
+}
+
 // 実際の遊びの中でポイントを稼ぐ手段。
 // 「10ポイント追加」ボタンはデバッグ用として残すが、本来はこちらが本流。
 const POINTS_PER_PLACEMENT = 2;
@@ -61,8 +82,29 @@ export class SaveManager {
       // 個人の累積ポイント: 一度稼いだら減らない、その子自身の頑張りの記録。
       lifetimePoints: 0,
       // クラスポイント: 森の成長そのものを表す。全員の獲得ポイントがそのまま積み上がる、消費されない値。
-      // イベント発生・バッジ解放・アイテム解放の判定は、すべてこの値を基準にする。
+      // イベント発生・バッジ解放・アイテム解放の判定は、すべて classPoints÷clearPoint の「%」を基準にする
+      // (computeProgressPercent参照)。classPoints自体は森ごとにリセットされる(startNewForest参照)。
       classPoints: 0,
+      // クラスに関する設定。GAS接続時はclass-sync.jsのpull()がサーバー値で上書きする。
+      classInfo: {
+        classCode: null,
+        teacherName: '',
+        // 完全クリア(=進行度100%)とみなすまでに必要なクラスポイント。先生がteacher.htmlで設定できる。
+        // ローカル単独時はこの既定値(100)がそのまま使われる。
+        clearPoint: 100
+      },
+      // ---- 森のライフサイクル ----
+      // 1つの森は進行度100%で「完成」する。完成後に子どもが「新しい森を始める」を選ぶと、
+      // それまでの森は forestHistory に記録として残り、classPoints等の「森そのものの成長を
+      // 表す値」だけが0に戻って次の森が始まる(個人の頑張りの記録=lifetimePoints等は消えない)。
+      forestGeneration: 1,
+      forestStatus: 'growing', // 'growing' | 'completed'
+      forestStartedAt: null,
+      forestCompletedAt: null,
+      forestHistory: [], // 過去に完成させた森の記録 { generation, startedAt, completedAt, finalClassPoints, ... }
+      // 起動画面ポップアップ(連続ログイン日数)用。
+      lastLoginAt: null,
+      loginStreak: 0,
       // 目標: 子どもが自分で作成する(先生設定で承認制に切替可能)。
       goalSettings: {
         maxGoals: 3,      // 先生設定。1〜5個。
@@ -70,6 +112,12 @@ export class SaveManager {
       },
       goals: [],   // { id, title, targetCount, createdAt, active }
       goalLog: [], // { id, goalId, goalTitle, date, status, requestedAt, resolvedAt, points }
+      // 直近で「クリア」がポイントに反映された目標(承認不要ならcompleteGoal時、承認制ならapproveGoal時)。
+      // 花などを配置した瞬間にこの値をスタンプすることで、「その花はどの目標のときに置いたか」を
+      // ゆるく紐付ける(ポイント自体は共有のプールなので、厳密な出納ではなく「そのとき頑張っていた目標」という位置づけ)。
+      lastCompletedGoal: null, // { goalId, goalTitle, at }
+      // studentId -> nickname のクラス名簿。GAS接続時にclass-sync.jsのpull()が埋める(ローカル単独時は空のまま)。
+      studentDirectory: {},
       activityLog: [],  // { id, type, message, createdAt } - クラス全員が見る最新ログ(最大50件)
       thanksLog: [],    // { id, toName, fromLabel, date, createdAt } - 「ありがとう」送信の記録
       notifications: [], // { id, type, message, createdAt, read } - 受信者向けの特別ポップアップ用キュー
@@ -100,7 +148,12 @@ export class SaveManager {
         cameraX: 50,
         cameraY: 40,
         showGrid: false,
-        showSpots: true
+        simpleMode: false,
+        furigana: true,
+        showSpots: true,
+        // 低学年・支援級向けに、サイドパネルを1つずつ切り替えて見せる「かんたん表示」。
+        // 既定はオフ(いままで通り全パネル表示)。子ども・先生がいつでも切り替えられる。
+        simpleMode: false
       },
       animals: [],
       shopPurchased: [],
@@ -149,6 +202,11 @@ export class SaveManager {
       ...base,
       ...state,
       ...migrated,
+      classInfo: {
+        ...base.classInfo,
+        ...(state?.classInfo || {})
+      },
+      forestHistory: Array.isArray(state?.forestHistory) ? state.forestHistory : base.forestHistory,
       unlockedCategories: {
         ...base.unlockedCategories,
         ...(state?.unlockedCategories || {})
@@ -170,7 +228,17 @@ export class SaveManager {
       activityLog: Array.isArray(state?.activityLog) ? state.activityLog : base.activityLog,
       thanksLog: Array.isArray(state?.thanksLog) ? state.thanksLog : base.thanksLog,
       notifications: Array.isArray(state?.notifications) ? state.notifications : base.notifications,
-      placedAssets: Array.isArray(state?.placedAssets) ? state.placedAssets : base.placedAssets,
+      // 旧バージョン(placedId/だれが/いつ/目標を持たない)のセーブデータからの移行。
+      // タップ詳細ポップアップが開けるよう、無ければその場でplacedId等を補って埋める。
+      // (だれが置いたか・どの目標かまでは当時の記録に無いので、そこは「記録なし」表示になる)
+      placedAssets: (Array.isArray(state?.placedAssets) ? state.placedAssets : base.placedAssets).map((p, i) => ({
+        ...p,
+        placedId: p.placedId || `legacy_${i}_${Math.random().toString(36).slice(2, 7)}`,
+        studentId: p.studentId ?? null,
+        nickname: p.nickname ?? null,
+        goalId: p.goalId ?? null,
+        goalTitle: p.goalTitle ?? null
+      })),
       ownedAssets: Array.isArray(state?.ownedAssets) ? state.ownedAssets : base.ownedAssets,
       completedEvents: Array.isArray(state?.completedEvents) ? state.completedEvents : base.completedEvents,
       animals: Array.isArray(state?.animals) ? state.animals : base.animals,
@@ -310,8 +378,8 @@ export class ShopManager {
   }
 
   isUnlocked(item, state) {
-    // 「森レベルによる解放」= クラス全体の進行度で決まる。個人の所持ポイントとは無関係。
-    const progress = Number(state?.classPoints || 0);
+    // 「森レベルによる解放」= クラス全体の進行度(%)で決まる。個人の所持ポイントとは無関係。
+    const progress = computeProgressPercent(state);
     const unlockProgress = Number(item?.unlockCondition?.progress || 0);
     if (progress < unlockProgress) return false;
     return true;
@@ -324,6 +392,7 @@ export class ShopManager {
   canBuy(item, state) {
     if (!item) return false;
     if (this.isPurchased(item, state)) return false;
+    if (!this.isUnlocked(item, state)) return false;
     const price = Number(item.price || 0);
     const points = Number(state?.personalPoints || 0);
     return points >= price;
@@ -522,6 +591,21 @@ export class ThanksManager {
   }
 }
 
+// activityLog(GASから同期された分を含む)の中から、指定した進捗%(5%刻み)で
+// 「最後のひと押し」になった行動(type: 'contribution_milestone')を探し、その actorName を返す。
+// 新しい方から探す(同じ%の記録は基本1件だが、念のため)。見つからなければnull
+// (GAS未接続、または貢献ログがまだ届いていない場合。banner側は表示を省略する)。
+function findContributorForProgress(state, progress) {
+  const log = Array.isArray(state?.activityLog) ? state.activityLog : [];
+  for (let i = log.length - 1; i >= 0; i--) {
+    const entry = log[i];
+    if (entry?.type === 'contribution_milestone' && Number(entry.progress) === Number(progress)) {
+      return entry.actorName || null;
+    }
+  }
+  return null;
+}
+
 function sortEvents(events = []) {
   return [...events].sort((a, b) => {
     const progressDiff = numberOrZero(a?.progress) - numberOrZero(b?.progress);
@@ -622,16 +706,63 @@ export class ForestCore {
     this.events = [];
     this.badgesCatalog = [];
     this.pendingMilestoneSummary = null;
+    // クラス協力の意味づけ強化(v22)用: 「直前にこの端末で自分が達成操作をした」ことを
+    // 短時間だけ覚えておく。syncMilestones()がこの直後に新しいイベントを検知したら、
+    // GASからの貢献ログが届くのを待たずに「最後のひと押しは自分」と即座に演出できる。
+    this._lastLocalActionAt = 0;
+    this._lastLocalActionActor = null;
     this.animals = new AnimalManager({ spots, assets });
     this.animals.hydrate(this.state.animals);
     this.shop = new ShopManager(shopItems);
     this.goalManager = new GoalManager();
     this.goalManager.ensureState(this.state);
     this.thanksManager = new ThanksManager();
+    // 「今この端末を触っているのは誰か」。ローカル単独時は既定で「わたし」。
+    // GAS接続済みならapp.js側からsetIdentity()で本人のstudentId/nicknameを渡す。
+    this.identity = { studentId: null, nickname: 'わたし' };
+
+    if (!this.state.forestStartedAt) {
+      this.state.forestStartedAt = new Date().toISOString();
+      this.persist();
+    }
   }
 
   getState() {
     return this.state;
+  }
+
+  setIdentity({ studentId = null, nickname = 'わたし' } = {}) {
+    this.identity = { studentId: studentId || null, nickname: nickname || 'わたし' };
+  }
+
+  // 配置物のstudentIdから表示名を解決する。
+  // - 自分が置いたもの(studentId無し、またはidentityと一致)は identity.nickname
+  // - クラスメイトが置いたものは studentDirectory(pullで取得)から引く
+  // - 名簿にまだ無ければ item.nickname(ローカルスタンプ分)にフォールバック
+  resolveNickname(item) {
+    if (!item) return 'わたし';
+    if (!item.studentId) return item.nickname || 'わたし';
+    if (this.identity?.studentId && item.studentId === this.identity.studentId) {
+      return this.identity.nickname || item.nickname || 'わたし';
+    }
+    const dir = this.state.studentDirectory || {};
+    return dir[item.studentId] || item.nickname || 'クラスの子';
+  }
+
+  // タップされた配置物1件ぶんの「だれが/いつ/どんな目標のときに」情報をまとめて返す。
+  // js/render.js が付ける data-placed-id をそのまま渡せる。
+  getPlacedAssetInfo(placedId) {
+    const item = (Array.isArray(this.state.placedAssets) ? this.state.placedAssets : [])
+      .find((p) => p.placedId === placedId);
+    if (!item) return null;
+    const asset = (this.assets || []).find((a) => a.id === item.assetId) || null;
+    return {
+      item,
+      asset,
+      nickname: this.resolveNickname(item),
+      goalTitle: item.goalTitle || null,
+      createdAt: item.createdAt || null
+    };
   }
 
   setAssets(assets) {
@@ -683,16 +814,28 @@ export class ForestCore {
       const completedSet = new Set(this.state.completedEvents);
       const earnedBadges = new Set(this.state.badges);
 
+      const progressPercent = computeProgressPercent(this.state);
       for (const event of sortEvents(this.events)) {
-        if (numberOrZero(this.state.classPoints) < numberOrZero(event?.progress)) continue;
+        if (progressPercent < numberOrZero(event?.progress)) continue;
         if (completedSet.has(event.id)) continue;
         completedSet.add(event.id);
-        summary.newEvents.push({
+        const eventSummary = {
           id: event.id,
           title: event.title || event.id,
           message: event.message || '',
-          effect: event.effect || null
-        });
+          effect: event.effect || null,
+          progress: numberOrZero(event.progress)
+        };
+        // 「最後のひと押し」が誰だったかを添える(クラス協力の意味づけ強化・v22)。
+        // 1) 直前にこの端末で自分が達成/承認を叩いた直後なら、その本人(自分)。
+        // 2) そうでなければ、GAS経由で共有された貢献ログ(contribution_milestone)から探す
+        //    (他の子の行動でイベントが起きた場合。pull()がactivityLogをマージした後に
+        //    syncMilestones()を呼ぶので、この時点でログは既に手元にある)。
+        const justActedByMe = this._lastLocalActionAt && (Date.now() - this._lastLocalActionAt) < 6000;
+        eventSummary.contributor = justActedByMe
+          ? (this._lastLocalActionActor || null)
+          : findContributorForProgress(this.state, eventSummary.progress);
+        summary.newEvents.push(eventSummary);
         localChanged = true;
 
         // イベントの内容と実際の見た目を連動させる。
@@ -703,7 +846,9 @@ export class ForestCore {
           if (spawned.length) {
             this.state.animals = this.animals.serialize();
             summary.autoSpawned = summary.autoSpawned || [];
-            summary.autoSpawned.push(...spawned.map((a) => a.assetId));
+            summary.autoSpawned.push(...spawned.map((a) => ({ assetId: a.assetId, x: a.x, y: a.y })));
+            // このイベントで実際にどこに出現したか(カメラを注目させるのに使う)
+            eventSummary.focus = { x: spawned[0].x, y: spawned[0].y };
           }
         }
       }
@@ -714,20 +859,22 @@ export class ForestCore {
 
       const evaluatedBadges = this.badgesCatalog.map((badge) => ({
         ...badge,
-        unlocked: isBadgeUnlocked(badge, this.state.classPoints, completedSet)
+        unlocked: isBadgeUnlocked(badge, computeProgressPercent(this.state), completedSet)
       }));
 
       for (const badge of evaluatedBadges) {
         if (!badge.unlocked || earnedBadges.has(badge.id)) continue;
         earnedBadges.add(badge.id);
-        summary.newBadges.push({
+        const badgeSummary = {
           id: badge.id,
           name: badge.name || badge.id,
           description: badge.description || ''
-        });
+        };
+        summary.newBadges.push(badgeSummary);
         if (badge.reward) {
           const rewardResult = applyReward(this.state, badge.reward);
           summary.rewardPoints += rewardResult.pointsAdded;
+          badgeSummary.reward = { points: rewardResult.pointsAdded, items: rewardResult.itemsAdded };
           for (const [key, value] of Object.entries(rewardResult.itemsAdded)) {
             summary.rewardItems[key] = (summary.rewardItems[key] || 0) + value;
           }
@@ -770,7 +917,164 @@ export class ForestCore {
       pushActivityLog(this.state, { type: 'unlock', message: `🌱 ${label}が解放されました` });
     }
 
+    // 画面(進行度バー等)がいつでも同じ値を参照できるよう、%をstateにもキャッシュしておく。
+    const finalPercent = computeProgressPercent(this.state);
+    this.state.progressPercent = finalPercent;
+
+    // 完全クリア(100%)に到達した瞬間を検知する。applyOnce的に一度だけ発火させ、
+    // エンディング演出(app.js側)に渡すためのスナップショットをsummaryに載せる。
+    if (finalPercent >= 100 && this.state.forestStatus !== 'completed') {
+      this.state.forestStatus = 'completed';
+      this.state.forestCompletedAt = new Date().toISOString();
+      pushActivityLog(this.state, {
+        type: 'forest_complete',
+        message: `🎉 ${numberOrZero(this.state.forestGeneration) || 1}代目の「コツコツの森」が完成しました！`
+      });
+      summary.forestCompleted = this.buildForestSummary();
+    }
+
     return summary;
+  }
+
+  // エンディング画面・過去の森の振り返り用に、今の森の状態をひとまとめにする。
+  buildForestSummary() {
+    return {
+      generation: numberOrZero(this.state.forestGeneration) || 1,
+      mapId: this.state.mapId,
+      startedAt: this.state.forestStartedAt,
+      completedAt: this.state.forestCompletedAt,
+      classPoints: numberOrZero(this.state.classPoints),
+      clearPoint: this.getClearPoint(),
+      progressPercent: computeProgressPercent(this.state),
+      placedCount: Array.isArray(this.state.placedAssets) ? this.state.placedAssets.length : 0,
+      eventCount: Array.isArray(this.state.completedEvents) ? this.state.completedEvents.length : 0,
+      badgeCount: Array.isArray(this.state.badges) ? this.state.badges.length : 0,
+      animalCount: Array.isArray(this.state.animals) ? this.state.animals.length : 0,
+      timeline: this.buildForestTimeline()
+    };
+  }
+
+  // 完成までに起きたイベントを発生順に並べる「森の年表」。
+  // events.json自体には発生日時が無いので、activityLog(forest_event等)から日時つきで復元する。
+  // v16まではforest_eventのみだったが、メルカリ風の「完成までの物語」らしさを出すため
+  // バッジ獲得・ジャンル解放・新しい森の開始も年表に含め、種別ごとにアイコンを持たせて密度を上げる。
+  buildForestTimeline() {
+    const log = Array.isArray(this.state.activityLog) ? this.state.activityLog : [];
+    const TIMELINE_TYPES = {
+      forest_event: '🌲',
+      badge: '🏅',
+      unlock: '🌱',
+      new_forest: '🌟'
+    };
+    return log
+      .filter((entry) => entry && TIMELINE_TYPES[entry.type])
+      .map((entry) => ({
+        message: entry.message,
+        at: entry.createdAt,
+        type: entry.type,
+        icon: TIMELINE_TYPES[entry.type]
+      }));
+  }
+
+  // 「新しい森を始める」。完成済みの森のときだけ実行できる。
+  // 森そのものの成長を表す値(classPoints/completedEvents/placedAssets/animals/
+  // unlockedCategories/このシーズンで取ったバッジ)だけをリセットし、
+  // 個人の頑張りの記録(personalPoints/lifetimePoints/購入済みアセット等)は引き継ぐ。
+  startNewForest() {
+    if (this.state.forestStatus !== 'completed') {
+      return { ok: false, reason: 'not_completed' };
+    }
+    const archived = this.buildForestSummary();
+    this.state.forestHistory = Array.isArray(this.state.forestHistory) ? this.state.forestHistory : [];
+    this.state.forestHistory.push(archived);
+
+    this.state.classPoints = 0;
+    this.state.completedEvents = [];
+    this.state.placedAssets = [];
+    this.state.animals = [];
+    this.animals.hydrate([]);
+    this.state.unlockedCategories = clone(this.saveManager.defaultState().unlockedCategories);
+    this.state.badges = [];
+    this.state.forestGeneration = (numberOrZero(this.state.forestGeneration) || 1) + 1;
+    this.state.forestStatus = 'growing';
+    this.state.forestStartedAt = new Date().toISOString();
+    this.state.forestCompletedAt = null;
+    this.state.progressPercent = 0;
+    this.pendingMilestoneSummary = null;
+
+    pushActivityLog(this.state, {
+      type: 'new_forest',
+      message: `🌱 ${this.state.forestGeneration}代目の森がはじまりました`
+    });
+    this.persist();
+    return { ok: true, archived, generation: this.state.forestGeneration };
+  }
+
+  getForestHistory() {
+    return Array.isArray(this.state.forestHistory) ? this.state.forestHistory : [];
+  }
+
+  getForestSummary() {
+    return this.buildForestSummary();
+  }
+
+  // ---- 起動画面ポップアップ(連続ログイン・きのうの出来事) ----
+
+  // その日はじめての起動かどうかを判定し、連続ログイン日数を更新する。
+  // 同じ日に何度アプリを開いても日数はカウントされない。
+  checkInToday(now = new Date()) {
+    const todayKey = GoalManager.todayKey(now);
+    const previousLoginAt = this.state.lastLoginAt || null;
+    const lastKey = previousLoginAt ? GoalManager.todayKey(new Date(previousLoginAt)) : null;
+    if (lastKey === todayKey) {
+      return { isNewDay: false, streak: numberOrZero(this.state.loginStreak) || 1, previousLoginAt };
+    }
+    const yesterdayKey = GoalManager.todayKey(new Date(now.getTime() - 24 * 60 * 60 * 1000));
+    const streak = lastKey === yesterdayKey ? numberOrZero(this.state.loginStreak) + 1 : 1;
+    this.state.loginStreak = streak;
+    this.state.lastLoginAt = now.toISOString();
+    this.persist();
+    return { isNewDay: true, streak, previousLoginAt };
+  }
+
+  // 起動画面ポップアップの中身一式:「連続ログイン日数」「きのうの出来事」「はげまし」
+  // 「未読の特別通知件数」をまとめて返す。app.js bootstrap側から1回だけ呼ばれる想定。
+  getDailySummary(now = new Date()) {
+    const { isNewDay, streak, previousLoginAt } = this.checkInToday(now);
+    const yesterdayKey = GoalManager.todayKey(new Date(now.getTime() - 24 * 60 * 60 * 1000));
+    const log = Array.isArray(this.state.activityLog) ? this.state.activityLog : [];
+    const yesterdayEntries = log.filter((entry) => entry?.createdAt && GoalManager.todayKey(new Date(entry.createdAt)) === yesterdayKey);
+
+    // 「イベント通知」の統合: 前回の起動から今回までの間に起きた、森・バッジ・ジャンル解放の
+    // できごとをまとめて拾う。クラス共有プレイでは自分が見ていない間に他の子の行動で
+    // 進んだ分もここに含まれるため、「きのう」だけでは拾えない見逃しを補う。
+    const NOTIFICATION_TYPES = new Set(['forest_event', 'badge', 'unlock', 'forest_complete', 'new_forest']);
+    const sinceLastVisit = previousLoginAt
+      ? log.filter((entry) => entry?.createdAt && new Date(entry.createdAt) > new Date(previousLoginAt))
+      : [];
+    const eventNotifications = sinceLastVisit
+      .filter((entry) => NOTIFICATION_TYPES.has(entry.type))
+      .slice(-5)
+      .reverse()
+      .map((entry) => entry.message);
+
+    const unread = (Array.isArray(this.state.notifications) ? this.state.notifications : []).filter((n) => !n.read);
+    return {
+      isNewDay,
+      streak,
+      yesterdayCount: yesterdayEntries.length,
+      yesterdayHighlights: yesterdayEntries.slice(-3).reverse().map((e) => e.message),
+      // 統合後の見出し用データ。eventNotificationsが1件でもあればそちらを優先表示し、
+      // 無ければ従来通り「きのうのできごと」にフォールバックする(app.js側で判定)。
+      eventNotifications,
+      eventNotificationCount: eventNotifications.length,
+      unreadCount: unread.length,
+      progressPercent: this.getProgressPercent(),
+      clearPoint: this.getClearPoint(),
+      forestGeneration: numberOrZero(this.state.forestGeneration) || 1,
+      forestStatus: this.state.forestStatus,
+      encouragement: pickEncouragement(streak, yesterdayEntries.length)
+    };
   }
 
   addPoints(points) {
@@ -816,7 +1120,18 @@ export class ForestCore {
     if (requiresShop) return false;
 
     const threshold = numberOrZero(asset.unlock);
-    return numberOrZero(this.state.classPoints) >= threshold;
+    return this.getProgressPercent() >= threshold;
+  }
+
+  // 完全クリアに必要なクラスポイント。先生設定(state.classInfo.clearPoint)が無ければ既定100。
+  getClearPoint() {
+    return numberOrZero(this.state?.classInfo?.clearPoint) || 100;
+  }
+
+  // 現在の進行度(0〜100の%)。events.json / badges.json / shop.json / assets.json の
+  // しきい値はすべてこの%と比較する。
+  getProgressPercent() {
+    return computeProgressPercent(this.state);
   }
 
   // spotId ごとに、今何個置かれているかを placedAssets から動的に数える。
@@ -843,12 +1158,29 @@ export class ForestCore {
     if (spotId && !this.isSpotAvailable(spotId)) {
       return { ok: false, reason: 'spot_full' };
     }
-    const item = { assetId, spotId, x, y };
+    const now = new Date();
+    const goal = this.state.lastCompletedGoal;
+    const item = {
+      assetId,
+      spotId,
+      x,
+      y,
+      // GAS接続時はサーバー発行のplacedIdで上書きされる(class-sync.jsのpull()参照)。
+      // ローカル単独時もタップ詳細表示のキーとして使えるよう、その場でも発行しておく。
+      placedId: `local_${now.getTime()}_${Math.random().toString(36).slice(2, 7)}`,
+      createdAt: now.toISOString(),
+      studentId: this.identity?.studentId || null,
+      nickname: this.identity?.nickname || 'わたし',
+      goalId: goal?.goalId || null,
+      goalTitle: goal?.goalTitle || null
+    };
     this.state.placedAssets = Array.isArray(this.state.placedAssets) ? this.state.placedAssets : [];
     this.state.placedAssets.push(item);
 
     // 配置そのものが進行の主な手段になる。
     awardPoints(this.state, POINTS_PER_PLACEMENT);
+    this._lastLocalActionAt = Date.now();
+    this._lastLocalActionActor = this.identity?.nickname || 'わたし';
     this.syncMilestones();
     this.persist();
     return { ok: true, ...item, pointsAwarded: POINTS_PER_PLACEMENT };
@@ -974,6 +1306,16 @@ export class ForestCore {
           ? `⏳「${title}」の達成を報告しました（承認待ち）`
           : `✅「${title}」を達成しました（+${result.pointsAwarded}pt）`
       });
+      // 承認不要(self判定)モードはこの時点でポイントが確定するので、
+      // 「直前にクリアした目標」として次の配置にスタンプされるようにする。
+      // 承認制の場合はapproveGoal()側で承認が下りたタイミングでスタンプする。
+      if (!result.needsApproval) {
+        this.state.lastCompletedGoal = { goalId: result.entry.goalId, goalTitle: title, at: result.entry.resolvedAt };
+        // 承認不要(self判定)モードは、この瞬間に自分の行動でポイントが確定する。
+        // syncMilestones()が直後にイベント発生を検知したら「自分」を最後のひと押しとして扱う。
+        this._lastLocalActionAt = Date.now();
+        this._lastLocalActionActor = this.identity?.nickname || 'わたし';
+      }
       this.syncMilestones();
       this.persist();
     }
@@ -991,6 +1333,8 @@ export class ForestCore {
         type: 'goal_approved',
         message: `👍「${result.entry.goalTitle}」が承認されました（+${result.pointsAwarded}pt）`
       });
+      // 承認制の場合はここでポイントが確定するので、ここで初めて「直前にクリアした目標」を更新する。
+      this.state.lastCompletedGoal = { goalId: result.entry.goalId, goalTitle: result.entry.goalTitle, at: result.entry.resolvedAt };
       this.syncMilestones();
       this.persist();
     }

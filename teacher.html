@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>コツコツの森 - 先生用ページ</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="teacher-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand__title">コツコツの森</div>
+        <div class="brand__sub">先生用ページ</div>
+      </div>
+      <div class="topbar__actions">
+        <a href="./index.html" class="link-quiet">← 児童の画面へ</a>
+      </div>
+    </header>
+
+    <div id="appMessage" class="app-message" style="display:none;"></div>
+
+    <!-- 未接続のときだけ表示: クラスを作る/管理する -->
+    <div id="connectView" class="teacher-layout">
+      <section class="panel">
+        <h2>1. GASのウェブアプリURLを入力</h2>
+        <div class="field-row">
+          <label for="baseUrlInput">GASデプロイURL</label>
+          <input type="text" id="baseUrlInput" placeholder="https://script.google.com/macros/s/.../exec" />
+        </div>
+      </section>
+
+      <div class="connect-choice">
+        <section class="panel">
+          <h2>新しいクラスを作る</h2>
+          <div class="field-row">
+            <label for="teacherNameInput">先生のお名前（任意）</label>
+            <input type="text" id="teacherNameInput" placeholder="例: 山田先生" maxlength="20" />
+          </div>
+          <div class="field-row">
+            <label for="clearPointInput">森がそろうまでのクラスポイント</label>
+            <input type="number" id="clearPointInput" value="1000" min="10" />
+          </div>
+          <div class="button-row">
+            <button id="btnCreateClass" class="btn btn--accent">クラスを作る</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>すでにあるクラスを管理する</h2>
+          <div class="field-row">
+            <label for="joinCodeInput">クラスコード</label>
+            <input type="text" id="joinCodeInput" placeholder="例: AB12CD" maxlength="12" />
+          </div>
+          <div class="button-row">
+            <button id="btnManageClass" class="btn">このクラスを開く</button>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- 接続済みのときだけ表示: 設定と承認 -->
+    <div id="dashboardView" class="teacher-layout" style="display:none;">
+      <section class="panel">
+        <h2>クラスコード（児童に伝えてください）</h2>
+        <div class="class-code-display" id="classCodeDisplay">------</div>
+        <div class="button-row" style="margin-top:12px;">
+          <button id="btnRefresh" class="btn">更新</button>
+          <button id="btnDisconnect" class="btn btn--ghost">別のクラスを開く</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>児童の様子</h2>
+        <div id="rosterSummary" class="roster-summary"></div>
+        <div class="button-row" style="margin: 6px 0 12px;">
+          <label class="roster-filter-toggle">
+            <input type="checkbox" id="rosterFilterToggle" />
+            気になる子だけ表示
+          </label>
+        </div>
+        <div id="studentRoster" class="student-roster">
+          <p class="muted">読み込み中…</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>クラス設定</h2>
+        <div class="field-row">
+          <label for="approvalModeSelect">達成の判定方法</label>
+          <select id="approvalModeSelect">
+            <option value="self">子ども自身で判定する</option>
+            <option value="teacher">先生が承認する</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <label for="maxGoalsInput">1人あたりの目標の上限（個）</label>
+          <input type="number" id="maxGoalsInput" min="1" max="10" />
+        </div>
+        <div class="field-row">
+          <label for="clearPointSettingInput">森がそろうまでのクラスポイント</label>
+          <input type="number" id="clearPointSettingInput" min="10" />
+        </div>
+        <div class="field-row">
+          <label for="stalledDaysInput">「停滞」とみなす日数（達成の記録が◯日ないと表示）</label>
+          <input type="number" id="stalledDaysInput" min="1" max="14" />
+        </div>
+        <div class="field-row">
+          <label for="supportDaysInput">「要支援」とみなす日数（◯日以上未起動で表示）</label>
+          <input type="number" id="supportDaysInput" min="1" max="14" />
+        </div>
+        <div class="button-row">
+          <button id="btnSaveSettings" class="btn btn--accent">設定を保存</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>承認待ち（クラス全体）</h2>
+        <div id="approvalList" class="goal-panel">
+          <p class="muted">読み込み中…</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>森の記録</h2>
+        <div id="forestNow" class="forest-now">読み込み中…</div>
+        <div id="forestHistoryList" class="forest-history-list"></div>
+      </section>
+
+      <section class="panel">
+        <h2>最近のできごと</h2>
+        <div id="activityList" class="event-log"></div>
+      </section>
+    </div>
+  </div>
+
+  <script type="module" src="./js/teacher.js"></script>
+</body>
+</html>
