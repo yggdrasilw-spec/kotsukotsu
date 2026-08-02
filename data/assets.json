@@ -1,896 +1,924 @@
 {
-  "meta": {
-    "project": "kokotsu_forest",
-    "version": "0.1",
-    "cellSize": 112,
-    "notes": "112px基準の暫定正式版 assets.json"
-  },
-  "assets": [
-    {
-      "id": "grass_01",
-      "type": "terrain",
-      "name": "草地",
-      "image": "grass_01.png",
-      "imageWidth": 112,
-      "imageHeight": 112,
-      "gridWidth": 1,
-      "gridHeight": 1,
-      "anchor": {
-        "x": 0.5,
-        "y": 0.5
-      },
-      "layer": "ground",
-      "animation": null,
-      "price": 0,
-      "unlock": 0,
-      "stackable": false,
-      "decorative": false,
-      "collision": {
-        "width": 1,
-        "height": 1
-      },
-      "variants": [
-        "grass_02",
-        "grass_03"
-      ],
-      "description": "森の基本地面",
-      "placeable": true,
-      "placeholderColor": "#cdeab2"
+    "meta": {
+        "project": "kokotsu_forest",
+        "version": "0.1",
+        "cellSize": 112,
+        "notes": "112px基準の暫定正式版 assets.json"
     },
-    {
-      "id": "path_01",
-      "type": "terrain",
-      "name": "小道",
-      "image": "path_01.png",
-      "imageWidth": 112,
-      "imageHeight": 112,
-      "gridWidth": 1,
-      "gridHeight": 1,
-      "anchor": {
-        "x": 0.5,
-        "y": 0.5
-      },
-      "layer": "path",
-      "animation": null,
-      "price": 0,
-      "unlock": 25,
-      "stackable": false,
-      "decorative": false,
-      "collision": {
-        "width": 1,
-        "height": 1
-      },
-      "variants": [
-        "path_02",
-        "path_03"
-      ],
-      "description": "森の小道",
-      "placeable": true,
-      "placeholderColor": "#e3c99a"
-    },
-    {
-      "id": "flower_small_01",
-      "type": "flower",
-      "name": "小さな花",
-      "image": "flower_small_01.png",
-      "imageWidth": 64,
-      "imageHeight": 64,
-      "gridWidth": 0,
-      "gridHeight": 0,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "layer": "flower",
-      "animation": null,
-      "price": 0,
-      "unlock": 10,
-      "stackable": true,
-      "decorative": true,
-      "collision": {
-        "width": 0,
-        "height": 0
-      },
-      "variants": [
-        "flower_small_02",
-        "flower_small_03"
-      ],
-      "description": "1マス内に複数置ける小花",
-      "placeable": true,
-      "emoji": "🌸"
-    },
-    {
-      "id": "flower_patch_01",
-      "type": "flower",
-      "name": "花のまとまり",
-      "image": "flower_patch_01.png",
-      "imageWidth": 112,
-      "imageHeight": 112,
-      "gridWidth": 1,
-      "gridHeight": 1,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "layer": "flower",
-      "animation": "fadeIn",
-      "price": 0,
-      "unlock": 10,
-      "stackable": true,
-      "decorative": true,
-      "collision": {
-        "width": 1,
-        "height": 1
-      },
-      "variants": [
-        "flower_patch_02",
-        "flower_patch_03"
-      ],
-      "description": "花のかたまり",
-      "placeable": true,
-      "emoji": "💐"
-    },
-    {
-      "id": "mushroom_small_01",
-      "type": "mushroom",
-      "name": "小さなきのこ",
-      "image": "mushroom_small_01.png",
-      "imageWidth": 48,
-      "imageHeight": 48,
-      "gridWidth": 0,
-      "gridHeight": 0,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "layer": "flower",
-      "animation": null,
-      "price": 0,
-      "unlock": 45,
-      "stackable": true,
-      "decorative": true,
-      "collision": {
-        "width": 0,
-        "height": 0
-      },
-      "variants": [
-        "mushroom_small_02",
-        "mushroom_small_03"
-      ],
-      "description": "木陰に置く小きのこ",
-      "placeable": true,
-      "emoji": "🍄"
-    },
-    {
-      "id": "mushroom_patch_01",
-      "type": "mushroom",
-      "name": "きのこの群れ",
-      "image": "mushroom_patch_01.png",
-      "imageWidth": 112,
-      "imageHeight": 112,
-      "gridWidth": 1,
-      "gridHeight": 1,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "layer": "flower",
-      "animation": "fadeIn",
-      "price": 0,
-      "unlock": 45,
-      "stackable": true,
-      "decorative": true,
-      "collision": {
-        "width": 1,
-        "height": 1
-      },
-      "variants": [
-        "mushroom_patch_02",
-        "mushroom_patch_03"
-      ],
-      "description": "複数のきのこがまとまった素材",
-      "placeable": true,
-      "emoji": "🍄"
-    },
-    {
-      "id": "tree_oak_01",
-      "type": "tree",
-      "name": "どんぐりの木",
-      "image": "tree_oak_01.png",
-      "imageWidth": 336,
-      "imageHeight": 448,
-      "gridWidth": 3,
-      "gridHeight": 4,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "layer": "tree",
-      "animation": "swaySlow",
-      "price": 0,
-      "unlock": 15,
-      "stackable": false,
-      "decorative": false,
-      "collision": {
-        "width": 3,
-        "height": 4
-      },
-      "variants": [
-        "tree_oak_02",
-        "tree_oak_03"
-      ],
-      "description": "森の主役になる標準木",
-      "placeable": false,
-      "emoji": "🌳"
-    },
-    {
-      "id": "tree_birch_01",
-      "type": "tree",
-      "name": "白い木",
-      "image": "tree_birch_01.png",
-      "imageWidth": 224,
-      "imageHeight": 336,
-      "gridWidth": 2,
-      "gridHeight": 3,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "layer": "tree",
-      "animation": "swaySlow",
-      "price": 0,
-      "unlock": 65,
-      "stackable": false,
-      "decorative": false,
-      "collision": {
-        "width": 2,
-        "height": 3
-      },
-      "variants": [
-        "tree_birch_02",
-        "tree_birch_03"
-      ],
-      "description": "明るい雰囲気の木",
-      "placeable": false,
-      "emoji": "🌳"
-    },
-    {
-      "id": "tree_pine_01",
-      "type": "tree",
-      "name": "針葉樹",
-      "image": "tree_pine_01.png",
-      "imageWidth": 448,
-      "imageHeight": 560,
-      "gridWidth": 4,
-      "gridHeight": 5,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "layer": "tree",
-      "animation": "swaySlow",
-      "price": 0,
-      "unlock": 65,
-      "stackable": false,
-      "decorative": false,
-      "collision": {
-        "width": 4,
-        "height": 5
-      },
-      "variants": [
-        "tree_pine_02",
-        "tree_pine_03"
-      ],
-      "description": "大きな存在感のある木",
-      "placeable": false,
-      "emoji": "🌲"
-    },
-    {
-      "id": "stump_01",
-      "type": "terrain",
-      "name": "切り株",
-      "image": "stump_01.png",
-      "imageWidth": 112,
-      "imageHeight": 112,
-      "gridWidth": 1,
-      "gridHeight": 1,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "layer": "rock",
-      "animation": null,
-      "price": 0,
-      "unlock": 35,
-      "stackable": false,
-      "decorative": true,
-      "collision": {
-        "width": 1,
-        "height": 1
-      },
-      "variants": [
-        "stump_02",
-        "stump_03"
-      ],
-      "description": "木の切り株",
-      "placeable": true,
-      "emoji": "🪵"
-    },
-    {
-      "id": "rock_small_01",
-      "type": "rock",
-      "name": "小岩",
-      "image": "rock_small_01.png",
-      "imageWidth": 96,
-      "imageHeight": 80,
-      "gridWidth": 1,
-      "gridHeight": 1,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "layer": "rock",
-      "animation": null,
-      "price": 0,
-      "unlock": 35,
-      "stackable": false,
-      "decorative": true,
-      "collision": {
-        "width": 1,
-        "height": 1
-      },
-      "variants": [
-        "rock_small_02",
-        "rock_small_03"
-      ],
-      "description": "小さな岩",
-      "placeable": false,
-      "emoji": "🪨"
-    },
-    {
-      "id": "rock_medium_01",
-      "type": "rock",
-      "name": "中岩",
-      "image": "rock_medium_01.png",
-      "imageWidth": 168,
-      "imageHeight": 112,
-      "gridWidth": 2,
-      "gridHeight": 1,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "layer": "rock",
-      "animation": null,
-      "price": 0,
-      "unlock": 35,
-      "stackable": false,
-      "decorative": true,
-      "collision": {
-        "width": 2,
-        "height": 1
-      },
-      "variants": [
-        "rock_medium_02",
-        "rock_medium_03"
-      ],
-      "description": "森のアクセントになる岩",
-      "placeable": false,
-      "emoji": "🪨"
-    },
-    {
-      "id": "pond_medium_01",
-      "type": "pond",
-      "name": "池",
-      "image": "pond_medium_01.png",
-      "imageWidth": 560,
-      "imageHeight": 448,
-      "gridWidth": 5,
-      "gridHeight": 4,
-      "anchor": {
-        "x": 0.5,
-        "y": 0.5
-      },
-      "layer": "pond",
-      "animation": "ripple",
-      "price": 0,
-      "unlock": 50,
-      "stackable": false,
-      "decorative": false,
-      "collision": {
-        "width": 5,
-        "height": 4
-      },
-      "variants": [
-        "pond_medium_02",
-        "pond_medium_03"
-      ],
-      "description": "森の水辺",
-      "placeable": false,
-      "emoji": "🌊"
-    },
-    {
-      "id": "bridge_medium_01",
-      "type": "bridge",
-      "name": "橋",
-      "image": "bridge_medium_01.png",
-      "imageWidth": 448,
-      "imageHeight": 112,
-      "gridWidth": 4,
-      "gridHeight": 1,
-      "anchor": {
-        "x": 0.5,
-        "y": 0.5
-      },
-      "layer": "bridge",
-      "animation": null,
-      "price": 0,
-      "unlock": 30,
-      "stackable": false,
-      "decorative": false,
-      "collision": {
-        "width": 4,
-        "height": 1
-      },
-      "variants": [
-        "bridge_medium_02",
-        "bridge_medium_03"
-      ],
-      "description": "池や川にかかる橋",
-      "placeable": false,
-      "emoji": "🌉"
-    },
-    {
-      "id": "bird_small_01",
-      "type": "bird",
-      "name": "小鳥",
-      "image": "bird_small_01.png",
-      "imageWidth": 64,
-      "imageHeight": 64,
-      "gridWidth": 0,
-      "gridHeight": 0,
-      "anchor": {
-        "x": 0.5,
-        "y": 0.8
-      },
-      "layer": "animal",
-      "animation": "flutter",
-      "price": 0,
-      "unlock": 55,
-      "stackable": true,
-      "decorative": true,
-      "collision": {
-        "width": 0,
-        "height": 0
-      },
-      "variants": [
-        "bird_small_02",
-        "bird_small_03"
-      ],
-      "description": "枝や空に現れる小鳥",
-      "placeable": true,
-      "emoji": "🐦"
-    },
-    {
-      "id": "squirrel_01",
-      "type": "animal",
-      "name": "リス",
-      "image": "squirrel_01.png",
-      "imageWidth": 112,
-      "imageHeight": 112,
-      "gridWidth": 0,
-      "gridHeight": 0,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "layer": "animal",
-      "animation": "wander",
-      "price": 0,
-      "unlock": 60,
-      "stackable": true,
-      "decorative": true,
-      "collision": {
-        "width": 0,
-        "height": 0
-      },
-      "variants": [
-        "squirrel_02",
-        "squirrel_03"
-      ],
-      "description": "森に現れるかわいいリス",
-      "placeable": true,
-      "emoji": "🐿️"
-    },
-    {
-      "id": "rabbit_01",
-      "type": "animal",
-      "name": "うさぎ",
-      "image": "rabbit_01.png",
-      "imageWidth": 128,
-      "imageHeight": 128,
-      "gridWidth": 1,
-      "gridHeight": 1,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "layer": "animal",
-      "animation": "hop",
-      "price": 0,
-      "unlock": 70,
-      "stackable": true,
-      "decorative": true,
-      "collision": {
-        "width": 1,
-        "height": 1
-      },
-      "variants": [
-        "rabbit_02",
-        "rabbit_03"
-      ],
-      "description": "地面を跳ねるうさぎ",
-      "placeable": true,
-      "emoji": "🐰"
-    },
-    {
-      "id": "fish_small_01",
-      "type": "fish",
-      "name": "小魚",
-      "image": "fish_small_01.png",
-      "imageWidth": 32,
-      "imageHeight": 32,
-      "gridWidth": 0,
-      "gridHeight": 0,
-      "anchor": {
-        "x": 0.5,
-        "y": 0.5
-      },
-      "layer": "animal",
-      "animation": "swim",
-      "price": 0,
-      "unlock": 50,
-      "stackable": true,
-      "decorative": true,
-      "collision": {
-        "width": 0,
-        "height": 0
-      },
-      "variants": [
-        "fish_small_02",
-        "fish_small_03"
-      ],
-      "description": "池の中を泳ぐ小魚",
-      "placeable": true,
-      "emoji": "🐟"
-    },
-    {
-      "id": "frog_01",
-      "type": "animal",
-      "name": "カエル",
-      "image": "frog_01.png",
-      "imageWidth": 72,
-      "imageHeight": 72,
-      "gridWidth": 0,
-      "gridHeight": 0,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "layer": "animal",
-      "animation": "bounce",
-      "price": 0,
-      "unlock": 70,
-      "stackable": true,
-      "decorative": true,
-      "collision": {
-        "width": 0,
-        "height": 0
-      },
-      "variants": [
-        "frog_02",
-        "frog_03"
-      ],
-      "description": "池の近くにいるカエル",
-      "placeable": true,
-      "emoji": "🐸"
-    },
-    {
-      "id": "acorn_01",
-      "type": "seed",
-      "name": "どんぐり",
-      "image": "acorn_01.png",
-      "imageWidth": 24,
-      "imageHeight": 24,
-      "gridWidth": 0,
-      "gridHeight": 0,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "layer": "effect",
-      "animation": null,
-      "price": 0,
-      "unlock": 15,
-      "stackable": true,
-      "decorative": true,
-      "collision": {
-        "width": 0,
-        "height": 0
-      },
-      "variants": [
-        "acorn_02",
-        "acorn_03"
-      ],
-      "description": "木の実",
-      "placeable": true,
-      "emoji": "🌰"
-    },
-    {
-      "id": "berry_01",
-      "type": "seed",
-      "name": "木の実",
-      "image": "berry_01.png",
-      "imageWidth": 20,
-      "imageHeight": 20,
-      "gridWidth": 0,
-      "gridHeight": 0,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "layer": "effect",
-      "animation": null,
-      "price": 0,
-      "unlock": 15,
-      "stackable": true,
-      "decorative": true,
-      "collision": {
-        "width": 0,
-        "height": 0
-      },
-      "variants": [
-        "berry_02",
-        "berry_03"
-      ],
-      "description": "小さな木の実",
-      "placeable": true,
-      "emoji": "🍓"
-    },
-    {
-      "id": "leaf_01",
-      "type": "effect",
-      "name": "葉っぱ",
-      "image": "leaf_01.png",
-      "imageWidth": 40,
-      "imageHeight": 40,
-      "gridWidth": 0,
-      "gridHeight": 0,
-      "anchor": {
-        "x": 0.5,
-        "y": 0.5
-      },
-      "layer": "effect",
-      "animation": "drift",
-      "price": 0,
-      "unlock": 0,
-      "stackable": true,
-      "decorative": true,
-      "collision": {
-        "width": 0,
-        "height": 0
-      },
-      "variants": [
-        "leaf_02",
-        "leaf_03"
-      ],
-      "description": "風で舞う葉っぱ",
-      "placeable": true,
-      "emoji": "🍃"
-    },
-    {
-      "id": "sparkle_small_01",
-      "type": "effect",
-      "name": "小さなきらめき",
-      "image": "sparkle_small_01.png",
-      "imageWidth": 32,
-      "imageHeight": 32,
-      "gridWidth": 0,
-      "gridHeight": 0,
-      "anchor": {
-        "x": 0.5,
-        "y": 0.5
-      },
-      "layer": "effect",
-      "animation": "sparkle",
-      "price": 0,
-      "unlock": 0,
-      "stackable": true,
-      "decorative": true,
-      "collision": {
-        "width": 0,
-        "height": 0
-      },
-      "variants": [
-        "sparkle_small_02",
-        "sparkle_small_03"
-      ],
-      "description": "小さな光の演出",
-      "placeable": true,
-      "emoji": "✨"
-    },
-    {
-      "id": "glow_01",
-      "type": "effect",
-      "name": "光",
-      "image": "glow_01.png",
-      "imageWidth": 112,
-      "imageHeight": 112,
-      "gridWidth": 0,
-      "gridHeight": 0,
-      "anchor": {
-        "x": 0.5,
-        "y": 0.5
-      },
-      "layer": "effect",
-      "animation": "pulse",
-      "price": 0,
-      "unlock": 75,
-      "stackable": true,
-      "decorative": true,
-      "collision": {
-        "width": 0,
-        "height": 0
-      },
-      "variants": [
-        "glow_02",
-        "glow_03"
-      ],
-      "description": "木漏れ日や光の演出",
-      "placeable": true,
-      "emoji": "🌟"
-    },
-    {
-      "id": "rainbow_01",
-      "type": "effect",
-      "name": "虹",
-      "image": "rainbow_01.png",
-      "imageWidth": 896,
-      "imageHeight": 448,
-      "gridWidth": 0,
-      "gridHeight": 0,
-      "anchor": {
-        "x": 0.5,
-        "y": 0.5
-      },
-      "layer": "effect",
-      "animation": null,
-      "price": 0,
-      "unlock": 80,
-      "stackable": true,
-      "decorative": true,
-      "collision": {
-        "width": 0,
-        "height": 0
-      },
-      "variants": [
-        "rainbow_02"
-      ],
-      "description": "特別演出用の大きな虹",
-      "placeable": true,
-      "emoji": "🌈"
-    },
-    {
-      "id": "bee_01",
-      "type": "insect",
-      "name": "みつばち",
-      "image": "bee_01.png",
-      "imageWidth": 32,
-      "imageHeight": 32,
-      "gridWidth": 1,
-      "gridHeight": 1,
-      "anchor": {
-        "x": 0.5,
-        "y": 0.5
-      },
-      "layer": "animal",
-      "animation": "fly",
-      "price": 0,
-      "unlock": 40,
-      "stackable": true,
-      "decorative": true,
-      "collision": {
-        "width": 1,
-        "height": 1
-      },
-      "variants": [],
-      "description": "花畑を飛びまわるみつばち",
-      "placeable": true,
-      "emoji": "🐝"
-    },
-    {
-      "id": "butterfly_01",
-      "type": "insect",
-      "name": "ちょうちょ",
-      "image": "butterfly_01.png",
-      "imageWidth": 32,
-      "imageHeight": 32,
-      "gridWidth": 1,
-      "gridHeight": 1,
-      "anchor": {
-        "x": 0.5,
-        "y": 0.5
-      },
-      "layer": "animal",
-      "animation": "fly",
-      "price": 0,
-      "unlock": 40,
-      "stackable": true,
-      "decorative": true,
-      "collision": {
-        "width": 1,
-        "height": 1
-      },
-      "variants": [],
-      "description": "花畑をひらひら飛ぶちょうちょ",
-      "placeable": true,
-      "emoji": "🦋"
-    },
-    {
-      "id": "dragonfly_01",
-      "type": "insect",
-      "name": "とんぼ",
-      "image": "dragonfly_01.png",
-      "imageWidth": 32,
-      "imageHeight": 32,
-      "gridWidth": 1,
-      "gridHeight": 1,
-      "anchor": {
-        "x": 0.5,
-        "y": 0.5
-      },
-      "layer": "animal",
-      "animation": "fly",
-      "price": 0,
-      "unlock": 45,
-      "stackable": true,
-      "decorative": true,
-      "collision": {
-        "width": 1,
-        "height": 1
-      },
-      "variants": [],
-      "description": "すいすい飛ぶとんぼ",
-      "placeable": true,
-      "emoji": "🪰"
-    },
-    {
-      "id": "pinecone_01",
-      "type": "seed",
-      "name": "まつぼっくり",
-      "image": "pinecone_01.png",
-      "imageWidth": 24,
-      "imageHeight": 24,
-      "gridWidth": 1,
-      "gridHeight": 1,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "layer": "effect",
-      "animation": null,
-      "price": 0,
-      "unlock": 15,
-      "stackable": true,
-      "decorative": true,
-      "collision": {
-        "width": 1,
-        "height": 1
-      },
-      "variants": [],
-      "description": "地面に落ちたまつぼっくり",
-      "placeable": true,
-      "emoji": "🌰"
-    }
-  ]
+    "assets": [
+        {
+            "id": "grass_01",
+            "type": "terrain",
+            "name": "草地",
+            "image": "grass_01.png",
+            "imageWidth": 112,
+            "imageHeight": 112,
+            "gridWidth": 1,
+            "gridHeight": 1,
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            },
+            "layer": "ground",
+            "animation": null,
+            "price": 0,
+            "unlock": 0,
+            "stackable": false,
+            "decorative": false,
+            "collision": {
+                "width": 1,
+                "height": 1
+            },
+            "variants": [
+                "grass_02",
+                "grass_03"
+            ],
+            "description": "森の基本地面",
+            "placeable": false,
+            "placeholderColor": "#cdeab2"
+        },
+        {
+            "id": "path_01",
+            "type": "terrain",
+            "name": "小道",
+            "image": "path_01.png",
+            "imageWidth": 112,
+            "imageHeight": 112,
+            "gridWidth": 1,
+            "gridHeight": 1,
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            },
+            "layer": "path",
+            "animation": null,
+            "price": 0,
+            "unlock": 25,
+            "stackable": false,
+            "decorative": false,
+            "collision": {
+                "width": 1,
+                "height": 1
+            },
+            "variants": [
+                "path_02",
+                "path_03"
+            ],
+            "description": "森の小道",
+            "placeable": false,
+            "placeholderColor": "#e3c99a"
+        },
+        {
+            "id": "flower_small_01",
+            "type": "flower",
+            "name": "小さな花",
+            "image": "flower_small_01.png",
+            "imageWidth": 64,
+            "imageHeight": 64,
+            "gridWidth": 0,
+            "gridHeight": 0,
+            "anchor": {
+                "x": 0.5,
+                "y": 1.0
+            },
+            "layer": "flower",
+            "animation": null,
+            "price": 0,
+            "unlock": 10,
+            "stackable": true,
+            "decorative": true,
+            "collision": {
+                "width": 0,
+                "height": 0
+            },
+            "variants": [
+                "flower_small_02",
+                "flower_small_03"
+            ],
+            "description": "1マス内に複数置ける小花",
+            "placeable": true,
+            "emoji": "🌸"
+        },
+        {
+            "id": "flower_patch_01",
+            "type": "flower",
+            "name": "花のまとまり",
+            "image": "flower_patch_01.png",
+            "imageWidth": 112,
+            "imageHeight": 112,
+            "gridWidth": 1,
+            "gridHeight": 1,
+            "anchor": {
+                "x": 0.5,
+                "y": 1.0
+            },
+            "layer": "flower",
+            "animation": "fadeIn",
+            "price": 0,
+            "unlock": 10,
+            "stackable": true,
+            "decorative": true,
+            "collision": {
+                "width": 1,
+                "height": 1
+            },
+            "variants": [
+                "flower_patch_02",
+                "flower_patch_03"
+            ],
+            "description": "花のかたまり",
+            "placeable": true,
+            "emoji": "💐"
+        },
+        {
+            "id": "mushroom_small_01",
+            "type": "mushroom",
+            "name": "小さなきのこ",
+            "image": "mushroom_small_01.png",
+            "imageWidth": 48,
+            "imageHeight": 48,
+            "gridWidth": 0,
+            "gridHeight": 0,
+            "anchor": {
+                "x": 0.5,
+                "y": 1.0
+            },
+            "layer": "flower",
+            "animation": null,
+            "price": 0,
+            "unlock": 45,
+            "stackable": true,
+            "decorative": true,
+            "collision": {
+                "width": 0,
+                "height": 0
+            },
+            "variants": [
+                "mushroom_small_02",
+                "mushroom_small_03"
+            ],
+            "description": "木陰に置く小きのこ",
+            "placeable": true,
+            "emoji": "🍄"
+        },
+        {
+            "id": "mushroom_patch_01",
+            "type": "mushroom",
+            "name": "きのこの群れ",
+            "image": "mushroom_patch_01.png",
+            "imageWidth": 112,
+            "imageHeight": 112,
+            "gridWidth": 1,
+            "gridHeight": 1,
+            "anchor": {
+                "x": 0.5,
+                "y": 1.0
+            },
+            "layer": "flower",
+            "animation": "fadeIn",
+            "price": 0,
+            "unlock": 45,
+            "stackable": true,
+            "decorative": true,
+            "collision": {
+                "width": 1,
+                "height": 1
+            },
+            "variants": [
+                "mushroom_patch_02",
+                "mushroom_patch_03"
+            ],
+            "description": "複数のきのこがまとまった素材",
+            "placeable": true,
+            "emoji": "🍄"
+        },
+        {
+            "id": "tree_oak_01",
+            "type": "tree",
+            "name": "どんぐりの木",
+            "image": "tree_oak_01.png",
+            "imageWidth": 336,
+            "imageHeight": 448,
+            "gridWidth": 3,
+            "gridHeight": 4,
+            "anchor": {
+                "x": 0.5,
+                "y": 1.0
+            },
+            "layer": "tree",
+            "animation": "swaySlow",
+            "price": 0,
+            "unlock": 15,
+            "stackable": false,
+            "decorative": false,
+            "collision": {
+                "width": 3,
+                "height": 4
+            },
+            "variants": [
+                "tree_oak_02",
+                "tree_oak_03"
+            ],
+            "description": "森の主役になる標準木",
+            "placeable": false,
+            "emoji": "🌳"
+        },
+        {
+            "id": "tree_birch_01",
+            "type": "tree",
+            "name": "白い木",
+            "image": "tree_birch_01.png",
+            "imageWidth": 224,
+            "imageHeight": 336,
+            "gridWidth": 2,
+            "gridHeight": 3,
+            "anchor": {
+                "x": 0.5,
+                "y": 1.0
+            },
+            "layer": "tree",
+            "animation": "swaySlow",
+            "price": 0,
+            "unlock": 65,
+            "stackable": false,
+            "decorative": false,
+            "collision": {
+                "width": 2,
+                "height": 3
+            },
+            "variants": [
+                "tree_birch_02",
+                "tree_birch_03"
+            ],
+            "description": "明るい雰囲気の木",
+            "placeable": false,
+            "emoji": "🌳"
+        },
+        {
+            "id": "tree_pine_01",
+            "type": "tree",
+            "name": "針葉樹",
+            "image": "tree_pine_01.png",
+            "imageWidth": 448,
+            "imageHeight": 560,
+            "gridWidth": 4,
+            "gridHeight": 5,
+            "anchor": {
+                "x": 0.5,
+                "y": 1.0
+            },
+            "layer": "tree",
+            "animation": "swaySlow",
+            "price": 0,
+            "unlock": 65,
+            "stackable": false,
+            "decorative": false,
+            "collision": {
+                "width": 4,
+                "height": 5
+            },
+            "variants": [
+                "tree_pine_02",
+                "tree_pine_03"
+            ],
+            "description": "大きな存在感のある木",
+            "placeable": false,
+            "emoji": "🌲"
+        },
+        {
+            "id": "tree_symbol_01",
+            "type": "tree",
+            "name": "シンボルツリー",
+            "image": "tree_symbol_01.png",
+            "imageWidth": 112,
+            "imageHeight": 112,
+            "gridWidth": 1,
+            "gridHeight": 1,
+            "anchor": {
+                "x": 0.5,
+                "y": 1.0
+            },
+            "layer": "tree",
+            "animation": "swaySlow",
+            "price": 0,
+            "unlock": 0,
+            "stackable": false,
+            "decorative": false,
+            "collision": {
+                "width": 1,
+                "height": 1
+            },
+            "variants": [],
+            "description": "森がはじまった日に植える苗木。進み具合に合わせて少しずつ育ち、最後には森でいちばん大きな木になる",
+            "placeable": false,
+            "emoji": "🌳"
+        },
+        {
+            "id": "stump_01",
+            "type": "terrain",
+            "name": "切り株",
+            "image": "stump_01.png",
+            "imageWidth": 112,
+            "imageHeight": 112,
+            "gridWidth": 1,
+            "gridHeight": 1,
+            "anchor": {
+                "x": 0.5,
+                "y": 1.0
+            },
+            "layer": "rock",
+            "animation": null,
+            "price": 0,
+            "unlock": 35,
+            "stackable": false,
+            "decorative": true,
+            "collision": {
+                "width": 1,
+                "height": 1
+            },
+            "variants": [
+                "stump_02",
+                "stump_03"
+            ],
+            "description": "木の切り株",
+            "placeable": false,
+            "emoji": "🪵"
+        },
+        {
+            "id": "rock_small_01",
+            "type": "rock",
+            "name": "小岩",
+            "image": "rock_small_01.png",
+            "imageWidth": 96,
+            "imageHeight": 80,
+            "gridWidth": 1,
+            "gridHeight": 1,
+            "anchor": {
+                "x": 0.5,
+                "y": 1.0
+            },
+            "layer": "rock",
+            "animation": null,
+            "price": 0,
+            "unlock": 35,
+            "stackable": false,
+            "decorative": true,
+            "collision": {
+                "width": 1,
+                "height": 1
+            },
+            "variants": [
+                "rock_small_02",
+                "rock_small_03"
+            ],
+            "description": "小さな岩",
+            "placeable": false,
+            "emoji": "🪨"
+        },
+        {
+            "id": "rock_medium_01",
+            "type": "rock",
+            "name": "中岩",
+            "image": "rock_medium_01.png",
+            "imageWidth": 168,
+            "imageHeight": 112,
+            "gridWidth": 2,
+            "gridHeight": 1,
+            "anchor": {
+                "x": 0.5,
+                "y": 1.0
+            },
+            "layer": "rock",
+            "animation": null,
+            "price": 0,
+            "unlock": 35,
+            "stackable": false,
+            "decorative": true,
+            "collision": {
+                "width": 2,
+                "height": 1
+            },
+            "variants": [
+                "rock_medium_02",
+                "rock_medium_03"
+            ],
+            "description": "森のアクセントになる岩",
+            "placeable": false,
+            "emoji": "🪨"
+        },
+        {
+            "id": "pond_medium_01",
+            "type": "pond",
+            "name": "池",
+            "image": "pond_medium_01.png",
+            "imageWidth": 560,
+            "imageHeight": 448,
+            "gridWidth": 5,
+            "gridHeight": 4,
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            },
+            "layer": "pond",
+            "animation": "ripple",
+            "price": 0,
+            "unlock": 50,
+            "stackable": false,
+            "decorative": false,
+            "collision": {
+                "width": 5,
+                "height": 4
+            },
+            "variants": [
+                "pond_medium_02",
+                "pond_medium_03"
+            ],
+            "description": "森の水辺",
+            "placeable": false,
+            "emoji": "🌊"
+        },
+        {
+            "id": "bridge_medium_01",
+            "type": "bridge",
+            "name": "橋",
+            "image": "bridge_medium_01.png",
+            "imageWidth": 448,
+            "imageHeight": 112,
+            "gridWidth": 4,
+            "gridHeight": 1,
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            },
+            "layer": "bridge",
+            "animation": null,
+            "price": 0,
+            "unlock": 30,
+            "stackable": false,
+            "decorative": false,
+            "collision": {
+                "width": 4,
+                "height": 1
+            },
+            "variants": [
+                "bridge_medium_02",
+                "bridge_medium_03"
+            ],
+            "description": "池や川にかかる橋",
+            "placeable": false,
+            "emoji": "🌉"
+        },
+        {
+            "id": "bird_small_01",
+            "type": "bird",
+            "name": "小鳥",
+            "image": "bird_small_01.png",
+            "imageWidth": 64,
+            "imageHeight": 64,
+            "gridWidth": 0,
+            "gridHeight": 0,
+            "anchor": {
+                "x": 0.5,
+                "y": 0.8
+            },
+            "layer": "animal",
+            "animation": "flutter",
+            "price": 0,
+            "unlock": 55,
+            "stackable": true,
+            "decorative": true,
+            "collision": {
+                "width": 0,
+                "height": 0
+            },
+            "variants": [
+                "bird_small_02",
+                "bird_small_03"
+            ],
+            "description": "枝や空に現れる小鳥",
+            "placeable": true,
+            "emoji": "🐦"
+        },
+        {
+            "id": "squirrel_01",
+            "type": "animal",
+            "name": "リス",
+            "image": "squirrel_01.png",
+            "imageWidth": 112,
+            "imageHeight": 112,
+            "gridWidth": 0,
+            "gridHeight": 0,
+            "anchor": {
+                "x": 0.5,
+                "y": 1.0
+            },
+            "layer": "animal",
+            "animation": "wander",
+            "price": 0,
+            "unlock": 60,
+            "stackable": true,
+            "decorative": true,
+            "collision": {
+                "width": 0,
+                "height": 0
+            },
+            "variants": [
+                "squirrel_02",
+                "squirrel_03"
+            ],
+            "description": "森に現れるかわいいリス",
+            "placeable": true,
+            "emoji": "🐿️"
+        },
+        {
+            "id": "rabbit_01",
+            "type": "animal",
+            "name": "うさぎ",
+            "image": "rabbit_01.png",
+            "imageWidth": 128,
+            "imageHeight": 128,
+            "gridWidth": 1,
+            "gridHeight": 1,
+            "anchor": {
+                "x": 0.5,
+                "y": 1.0
+            },
+            "layer": "animal",
+            "animation": "hop",
+            "price": 0,
+            "unlock": 70,
+            "stackable": true,
+            "decorative": true,
+            "collision": {
+                "width": 1,
+                "height": 1
+            },
+            "variants": [
+                "rabbit_02",
+                "rabbit_03"
+            ],
+            "description": "地面を跳ねるうさぎ",
+            "placeable": true,
+            "emoji": "🐰"
+        },
+        {
+            "id": "fish_small_01",
+            "type": "fish",
+            "name": "小魚",
+            "image": "fish_small_01.png",
+            "imageWidth": 32,
+            "imageHeight": 32,
+            "gridWidth": 0,
+            "gridHeight": 0,
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            },
+            "layer": "animal",
+            "animation": "swim",
+            "price": 0,
+            "unlock": 50,
+            "stackable": true,
+            "decorative": true,
+            "collision": {
+                "width": 0,
+                "height": 0
+            },
+            "variants": [
+                "fish_small_02",
+                "fish_small_03"
+            ],
+            "description": "池の中を泳ぐ小魚",
+            "placeable": true,
+            "emoji": "🐟"
+        },
+        {
+            "id": "frog_01",
+            "type": "animal",
+            "name": "カエル",
+            "image": "frog_01.png",
+            "imageWidth": 72,
+            "imageHeight": 72,
+            "gridWidth": 0,
+            "gridHeight": 0,
+            "anchor": {
+                "x": 0.5,
+                "y": 1.0
+            },
+            "layer": "animal",
+            "animation": "bounce",
+            "price": 0,
+            "unlock": 70,
+            "stackable": true,
+            "decorative": true,
+            "collision": {
+                "width": 0,
+                "height": 0
+            },
+            "variants": [
+                "frog_02",
+                "frog_03"
+            ],
+            "description": "池の近くにいるカエル",
+            "placeable": true,
+            "emoji": "🐸"
+        },
+        {
+            "id": "acorn_01",
+            "type": "seed",
+            "name": "どんぐり",
+            "image": "acorn_01.png",
+            "imageWidth": 24,
+            "imageHeight": 24,
+            "gridWidth": 0,
+            "gridHeight": 0,
+            "anchor": {
+                "x": 0.5,
+                "y": 1.0
+            },
+            "layer": "effect",
+            "animation": null,
+            "price": 0,
+            "unlock": 15,
+            "stackable": true,
+            "decorative": true,
+            "collision": {
+                "width": 0,
+                "height": 0
+            },
+            "variants": [
+                "acorn_02",
+                "acorn_03"
+            ],
+            "description": "木の実",
+            "placeable": true,
+            "emoji": "🌰"
+        },
+        {
+            "id": "berry_01",
+            "type": "seed",
+            "name": "木の実",
+            "image": "berry_01.png",
+            "imageWidth": 20,
+            "imageHeight": 20,
+            "gridWidth": 0,
+            "gridHeight": 0,
+            "anchor": {
+                "x": 0.5,
+                "y": 1.0
+            },
+            "layer": "effect",
+            "animation": null,
+            "price": 0,
+            "unlock": 15,
+            "stackable": true,
+            "decorative": true,
+            "collision": {
+                "width": 0,
+                "height": 0
+            },
+            "variants": [
+                "berry_02",
+                "berry_03"
+            ],
+            "description": "小さな木の実",
+            "placeable": true,
+            "emoji": "🍓"
+        },
+        {
+            "id": "leaf_01",
+            "type": "effect",
+            "name": "葉っぱ",
+            "image": "leaf_01.png",
+            "imageWidth": 40,
+            "imageHeight": 40,
+            "gridWidth": 0,
+            "gridHeight": 0,
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            },
+            "layer": "effect",
+            "animation": "drift",
+            "price": 0,
+            "unlock": 0,
+            "stackable": true,
+            "decorative": true,
+            "collision": {
+                "width": 0,
+                "height": 0
+            },
+            "variants": [
+                "leaf_02",
+                "leaf_03"
+            ],
+            "description": "風で舞う葉っぱ",
+            "placeable": true,
+            "emoji": "🍃"
+        },
+        {
+            "id": "sparkle_small_01",
+            "type": "effect",
+            "name": "小さなきらめき",
+            "image": "sparkle_small_01.png",
+            "imageWidth": 32,
+            "imageHeight": 32,
+            "gridWidth": 0,
+            "gridHeight": 0,
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            },
+            "layer": "effect",
+            "animation": "sparkle",
+            "price": 0,
+            "unlock": 0,
+            "stackable": true,
+            "decorative": true,
+            "collision": {
+                "width": 0,
+                "height": 0
+            },
+            "variants": [
+                "sparkle_small_02",
+                "sparkle_small_03"
+            ],
+            "description": "小さな光の演出",
+            "placeable": true,
+            "emoji": "✨"
+        },
+        {
+            "id": "glow_01",
+            "type": "effect",
+            "name": "光",
+            "image": "glow_01.png",
+            "imageWidth": 112,
+            "imageHeight": 112,
+            "gridWidth": 0,
+            "gridHeight": 0,
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            },
+            "layer": "effect",
+            "animation": "pulse",
+            "price": 0,
+            "unlock": 75,
+            "stackable": true,
+            "decorative": true,
+            "collision": {
+                "width": 0,
+                "height": 0
+            },
+            "variants": [
+                "glow_02",
+                "glow_03"
+            ],
+            "description": "木漏れ日や光の演出",
+            "placeable": true,
+            "emoji": "🌟"
+        },
+        {
+            "id": "rainbow_01",
+            "type": "effect",
+            "name": "虹",
+            "image": "rainbow_01.png",
+            "imageWidth": 896,
+            "imageHeight": 448,
+            "gridWidth": 0,
+            "gridHeight": 0,
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            },
+            "layer": "effect",
+            "animation": null,
+            "price": 0,
+            "unlock": 80,
+            "stackable": true,
+            "decorative": true,
+            "collision": {
+                "width": 0,
+                "height": 0
+            },
+            "variants": [
+                "rainbow_02"
+            ],
+            "description": "特別演出用の大きな虹",
+            "placeable": true,
+            "emoji": "🌈"
+        },
+        {
+            "id": "bee_01",
+            "type": "insect",
+            "name": "みつばち",
+            "image": "bee_01.png",
+            "imageWidth": 32,
+            "imageHeight": 32,
+            "gridWidth": 1,
+            "gridHeight": 1,
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            },
+            "layer": "animal",
+            "animation": "fly",
+            "price": 0,
+            "unlock": 40,
+            "stackable": true,
+            "decorative": true,
+            "collision": {
+                "width": 1,
+                "height": 1
+            },
+            "variants": [],
+            "description": "花畑を飛びまわるみつばち",
+            "placeable": true,
+            "emoji": "🐝"
+        },
+        {
+            "id": "butterfly_01",
+            "type": "insect",
+            "name": "ちょうちょ",
+            "image": "butterfly_01.png",
+            "imageWidth": 32,
+            "imageHeight": 32,
+            "gridWidth": 1,
+            "gridHeight": 1,
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            },
+            "layer": "animal",
+            "animation": "fly",
+            "price": 0,
+            "unlock": 40,
+            "stackable": true,
+            "decorative": true,
+            "collision": {
+                "width": 1,
+                "height": 1
+            },
+            "variants": [],
+            "description": "花畑をひらひら飛ぶちょうちょ",
+            "placeable": true,
+            "emoji": "🦋"
+        },
+        {
+            "id": "dragonfly_01",
+            "type": "insect",
+            "name": "とんぼ",
+            "image": "dragonfly_01.png",
+            "imageWidth": 32,
+            "imageHeight": 32,
+            "gridWidth": 1,
+            "gridHeight": 1,
+            "anchor": {
+                "x": 0.5,
+                "y": 0.5
+            },
+            "layer": "animal",
+            "animation": "fly",
+            "price": 0,
+            "unlock": 45,
+            "stackable": true,
+            "decorative": true,
+            "collision": {
+                "width": 1,
+                "height": 1
+            },
+            "variants": [],
+            "description": "すいすい飛ぶとんぼ",
+            "placeable": true,
+            "emoji": "🪰"
+        },
+        {
+            "id": "pinecone_01",
+            "type": "seed",
+            "name": "まつぼっくり",
+            "image": "pinecone_01.png",
+            "imageWidth": 24,
+            "imageHeight": 24,
+            "gridWidth": 1,
+            "gridHeight": 1,
+            "anchor": {
+                "x": 0.5,
+                "y": 1.0
+            },
+            "layer": "effect",
+            "animation": null,
+            "price": 0,
+            "unlock": 15,
+            "stackable": true,
+            "decorative": true,
+            "collision": {
+                "width": 1,
+                "height": 1
+            },
+            "variants": [],
+            "description": "地面に落ちたまつぼっくり",
+            "placeable": true,
+            "emoji": "🌰"
+        }
+    ]
 }

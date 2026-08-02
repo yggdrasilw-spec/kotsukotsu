@@ -33,6 +33,30 @@
       "description": "北側の木スポット"
     },
     {
+      "id": "symbolTreeSpot",
+      "type": "symbolTree",
+      "area": "specialSpotArea",
+      "x": 50,
+      "y": 26,
+      "priority": 1,
+      "allow": [
+        "tree_symbol_01"
+      ],
+      "maxCount": 1,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0,
+      "stackable": false,
+      "description": "森の中心。苗木を植えてシンボルツリーとして育てる特別なスポット"
+    },
+    {
       "id": "flowerSpot001",
       "type": "flower",
       "area": "flowerMeadow",

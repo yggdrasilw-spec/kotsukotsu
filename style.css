@@ -431,6 +431,7 @@ select:focus-visible {
   will-change: transform;
 }
 
+
 .forest-layer {
   position: absolute;
   inset: 0;
@@ -1227,6 +1228,15 @@ select:focus-visible {
 
 .forest-node--tree {
   background: linear-gradient(180deg, rgba(127, 193, 101, 0.18), rgba(75, 126, 62, 0.08));
+}
+
+/* (v25) 中心のシンボルツリー。進行度に応じてwidth/height/left/topが変わるたびに
+   ふわっと大きくなるようにtransitionを付け、他の木よりも目立つように淡い光を添える。 */
+.forest-node--symbol-tree {
+  transition: width 0.7s cubic-bezier(0.34, 1.2, 0.4, 1), height 0.7s cubic-bezier(0.34, 1.2, 0.4, 1),
+    left 0.7s cubic-bezier(0.34, 1.2, 0.4, 1), top 0.7s cubic-bezier(0.34, 1.2, 0.4, 1);
+  filter: drop-shadow(0 0 14px rgba(255, 221, 130, 0.5));
+  z-index: 5;
 }
 
 .forest-node--animal {

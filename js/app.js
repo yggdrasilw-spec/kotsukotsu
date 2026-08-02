@@ -946,6 +946,25 @@ async function bootstrap() {
     }
   }
 
+  // (v25) 森が始まった瞬間(または新しい代が始まった瞬間)に、中心に植えたばかりの
+  // シンボルツリーへ1回だけズームインして紹介する。presentMilestone()の
+  // ズームイン→バナー表示→ズームアウトの仕組みをそのまま流用する。
+  function maybeShowSymbolTreeIntro() {
+    if (!core.shouldShowSymbolTreeIntro()) return;
+    const spot = (spots || []).find((s) => s.id === 'symbolTreeSpot');
+    if (!spot) return;
+    milestoneQueue.push({
+      kind: 'event',
+      icon: '🌱',
+      title: '森のはじまり',
+      message: 'まんなかに、この森のシンボルツリーになる苗木を植えたよ。がんばるほど、少しずつ大きく育っていくよ',
+      effect: 'grow',
+      focus: { x: spot.x, y: spot.y }
+    });
+    core.markSymbolTreeIntroShown();
+    if (!milestoneBusy) processMilestoneQueue();
+  }
+
   function announceNotifications() {
     const unread = core.consumeNotifications();
     for (const notification of unread) {
@@ -1190,6 +1209,7 @@ async function bootstrap() {
           camera.clampToBounds();
           toast(`🌱 ${result.generation}代目の森がはじまりました`);
           refresh();
+          maybeShowSymbolTreeIntro();
           // クラス共有プレイなら、みんなでも同じ次代へ進めるようにサーバー側にも伝える。
           classSync.pushStartNewForest();
         } else if (result.reason === 'waiting_for_teacher') {
@@ -1375,6 +1395,7 @@ async function bootstrap() {
     showEndingModal(core.getForestSummary());
   } else {
     showWelcomePopup();
+    maybeShowSymbolTreeIntro();
   }
   requestAnimationFrame(loop);
   setInterval(() => {

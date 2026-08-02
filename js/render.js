@@ -37,17 +37,28 @@ function assetSize(asset, cellSize) {
   return { width, height };
 }
 
-function assetPosition(item, asset, cellSize) {
+function assetPosition(item, asset, cellSize, scale = 1) {
   const size = assetSize(asset, cellSize);
+  const width = size.width * scale;
+  const height = size.height * scale;
   const anchor = asset?.anchor || { x: 0.5, y: 1.0 };
   const worldX = Number(item.x || 0) * cellSize;
   const worldY = Number(item.y || 0) * cellSize;
   return {
-    left: worldX - size.width * anchor.x,
-    top: worldY - size.height * anchor.y,
-    width: size.width,
-    height: size.height
+    left: worldX - width * anchor.x,
+    top: worldY - height * anchor.y,
+    width,
+    height
   };
+}
+
+// (v25) 中心のシンボルツリー専用の成長スケール。
+// 森の開始時(進行度0%)は他の小物と同じグリッド1マス分の苗木として置かれ、
+// 進行度が進むほど少しずつ大きくなり、完成(100%)時には森でいちばん大きい木
+// (針葉樹: 4×5マス)よりも一回り大きい、6倍サイズのシンボルツリーになる。
+function symbolTreeScale(progressPercent) {
+  const p = Math.max(0, Math.min(100, Number(progressPercent) || 0));
+  return 1 + (p / 100) * 5;
 }
 
 function makeNodeHtml({ id, title, image, glyph = '', className = '', left, top, width, height, layer, extraData = '', label = '', tileSize = null, glyphColor = '', color = '' }) {
@@ -230,9 +241,12 @@ export function createForestRenderer({
 
   function renderPlacedAssets(state) {
     const placedAssets = Array.isArray(state?.placedAssets) ? state.placedAssets : [];
+    const progressPercent = computeProgressPercent(state);
     return placedAssets.map((item, index) => {
       const asset = assetById.get(item.assetId) || null;
-      const pos = assetPosition(item, asset, camera.cellSize);
+      const isSymbolTree = Boolean(item.isSymbolTree) || item.spotId === 'symbolTreeSpot';
+      const scale = isSymbolTree ? symbolTreeScale(progressPercent) : 1;
+      const pos = assetPosition(item, asset, camera.cellSize, scale);
       const { image, glyph, color } = resolveVisual(asset);
       return makeNodeHtml({
         id: `placed-${index}`,
@@ -240,7 +254,7 @@ export function createForestRenderer({
         image,
         glyph,
         color,
-        className: `forest-node--asset forest-node--${escapeHtml(asset?.type || 'unknown')}`,
+        className: `forest-node--asset forest-node--${escapeHtml(asset?.type || 'unknown')}${isSymbolTree ? ' forest-node--symbol-tree' : ''}`,
         left: pos.left,
         top: pos.top,
         width: pos.width,

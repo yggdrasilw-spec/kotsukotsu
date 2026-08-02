@@ -15,19 +15,40 @@ function clone(value) {
 // events.json の演出テキストと、実際のゲーム内変化を紐付けるテーブル。
 // 例えば「50% 池が現れる」なら魚が、「60% リスがあらわれる」なら実際に
 // 小動物が自動的に出現するようにする(これまではテキストだけで見た目は変わらなかった)。
+// (v25) それまで「メッセージだけで見た目は何も変わらない」イベントが半分近くあった
+// (event_20/25/30/40/45/55/70/75/80/85/90/95等)ため、各イベントのメッセージ内容と
+// data/assets.jsonのunlockしきい値に合わせて、対応する生き物が実際に出現するよう
+// 一通り埋めた。bird/insectはspots.json側に元々枠(birdSpot, insectSpot)があったのに
+// どのイベントからも呼ばれておらず、ずっと空きスポットのままになっていた。
 const EVENT_AUTO_SPAWN = {
-  event_50: { type: 'fish', count: 2 },
-  event_60: { type: 'animal_ground', count: 1 }
+  event_40: { type: 'insect', count: 3 },        // 虫たちが集まりだす(ハチ・チョウ / unlock40)
+  event_45: { type: 'insect', count: 2 },         // きのこが仲間を増やす(…とトンボ / unlock45)
+  event_50: { type: 'fish', count: 2 },           // 池が現れる
+  event_55: { type: 'bird', count: 2 },           // 小鳥がやってくる(unlock55)
+  event_60: { type: 'animal_ground', count: 1 },  // リスがあらわれる(unlock60)
+  event_70: { type: 'animal_ground', count: 2 },  // うさぎとかえるが遊びに来る(unlock70)
+  event_85: { type: 'insect', count: 2 }          // 森じゅうがにぎやかになる
 };
 
 // 「木」「岩」は"大物"として、児童が選んで置くのではなく進行度(%)に応じて
 // システム側が自動でspots.jsonの決まった場所へ配置する(v24)。
-// treeSpotは全部で3つ(event_15で1本、event_65で残り2本 = 過不足なく埋まる)。
+// (v25) 森の始まりに置いていた「進行度15%でtree_oak_01を即フルサイズ配置」は、
+// 他のアセットに比べて大きすぎるうえ育つ演出も無く不自然だったため廃止。
+// 代わりに中心の symbolTreeSpot に「シンボルツリー」を森の開始時から1本植え、
+// 進行度に応じて少しずつ大きく描画する(見た目のスケーリングはrender.js側)。
+// treeSpotは全部で3つ。以前はevent_15で1本+event_65で残り2本だったが、
+// event_15を廃止したためevent_65でまとめて3本とも配置する。
 // rockSpotは合計10だが、event_35の一度きりの演出なので控えめに4個だけ配置する。
+// mushroom/effect(きらきら)スポットも同様にこれまで一度も自動配置されておらず
+// 空のままだったため、対応するイベントに合わせて追加した。
 const EVENT_AUTO_PLACE = {
-  event_15: { spotType: 'tree', count: 1 },
-  event_35: { spotType: 'rock', count: 4 },
-  event_65: { spotType: 'tree', count: 2 }
+  event_35: { spotType: 'rock', count: 4 },      // 岩が顔を出す
+  event_45: { spotType: 'mushroom', count: 4 },  // きのこが仲間を増やす(unlock45)
+  event_65: { spotType: 'tree', count: 3 },      // 新しい木が仲間入り
+  event_75: { spotType: 'effect', count: 6 },    // 森が輝きだす
+  event_80: { spotType: 'effect', count: 4 },    // 虹が出る
+  event_95: { spotType: 'effect', count: 5 },    // 完成まであと少し
+  event_100: { spotType: 'effect', count: 10 }   // 森の完成(フィナーレのきらめき)
 };
 
 // バッジの解放判定ロジック。core-runtime(進行を確定させる側)と
@@ -120,6 +141,10 @@ export class SaveManager {
       // 起動画面ポップアップ(連続ログイン日数)用。
       lastLoginAt: null,
       loginStreak: 0,
+      // (v25) 中心のシンボルツリーへズームインする「森のはじまり」演出を、
+      // その世代でまだ見せていなければtrue→falseのまま。1回見せたらtrueにする
+      // (startNewForest()で次の代ではまたfalseに戻す)。
+      symbolTreeIntroShown: false,
       // 目標: 子どもが自分で作成する(先生設定で承認制に切替可能)。
       goalSettings: {
         maxGoals: 3,      // 先生設定。1〜5個。
@@ -740,10 +765,52 @@ export class ForestCore {
       this.state.forestStartedAt = new Date().toISOString();
       this.persist();
     }
+    // 既存のセーブデータ(v25より前に作られたもの)にはシンボルツリーが
+    // まだ植わっていないので、読み込み時にも必ず確認して無ければ植える。
+    this.ensureSymbolTree();
   }
 
   getState() {
     return this.state;
+  }
+
+  // (v25) 中心のsymbolTreeSpotに、まだ苗木が無ければ1本植える。
+  // 森の開始時(コンストラクタ/startNewForest)の両方から呼ぶ、冪等な処理。
+  // 大物の自動配置(autoPlaceAtSpotType)と違い、これは進行度に関係なく
+  // 「森が始まった瞬間」に必ず1本存在させるためのもの。
+  ensureSymbolTree() {
+    const spot = (this.spots || []).find((s) => s.id === 'symbolTreeSpot');
+    if (!spot) return null;
+    this.state.placedAssets = Array.isArray(this.state.placedAssets) ? this.state.placedAssets : [];
+    const already = this.state.placedAssets.find((p) => p.spotId === 'symbolTreeSpot');
+    if (already) return already;
+    const now = new Date();
+    const item = {
+      assetId: 'tree_symbol_01',
+      spotId: spot.id,
+      x: spot.x,
+      y: spot.y,
+      placedId: `symbol_${now.getTime()}_${Math.random().toString(36).slice(2, 7)}`,
+      createdAt: now.toISOString(),
+      studentId: null,
+      nickname: '森',
+      goalId: null,
+      goalTitle: null,
+      isSymbolTree: true
+    };
+    this.state.placedAssets.push(item);
+    this.persist();
+    return item;
+  }
+
+  // 「森のはじまり」ズームイン演出(js/app.js側)を、この代でまだ見せていないか。
+  shouldShowSymbolTreeIntro() {
+    return this.state.symbolTreeIntroShown !== true;
+  }
+
+  markSymbolTreeIntroShown() {
+    this.state.symbolTreeIntroShown = true;
+    this.persist();
   }
 
   setIdentity({ studentId = null, nickname = 'わたし' } = {}) {
@@ -1032,6 +1099,9 @@ export class ForestCore {
     this.state.forestStartedAt = new Date().toISOString();
     this.state.forestCompletedAt = null;
     this.state.progressPercent = 0;
+    // 新しい代でもまた苗木から始める。演出も次に開くタイミングでもう一度見せる。
+    this.state.symbolTreeIntroShown = false;
+    this.ensureSymbolTree();
     // 次の世代でもまた先生の解放操作が必要になるよう、ここで一旦falseに戻す。
     // (クラス未接続のローカル単独時はtrueのままにしておく)
     this.state.nextForestUnlocked = this.state.classInfo?.classCode ? false : true;
