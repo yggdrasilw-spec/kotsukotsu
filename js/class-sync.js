@@ -321,6 +321,9 @@ export class ClassSync {
       placedId: p.placedId, studentId: p.studentId, createdAt: p.createdAt,
       goalId: p.goalId || null, goalTitle: p.goalTitle || null
     }));
+    // シンボルツリーも他の配置物と同じくGASのPlacedAssetsが正(クラス全員で同じ1本を見る)。
+    // サーバー側(ensureSymbolTreePlaced)が常に1本だけ存在することを保証しているため、
+    // クライアント側で個別に植え直す処理は不要。
 
     // ログ類はidで重複排除してマージ、新しい順に最大50件。
     state.activityLog = mergeById(state.activityLog, (activityLog || []).map((l) => ({ ...l, id: l.logId })), 50);

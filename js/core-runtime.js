@@ -95,7 +95,6 @@ function pickEncouragement(streak, yesterdayCount) {
 
 // 実際の遊びの中でポイントを稼ぐ手段。
 // 「10ポイント追加」ボタンはデバッグ用として残すが、本来はこちらが本流。
-const POINTS_PER_PLACEMENT = 2;
 const POINTS_PER_ANIMAL_DISCOVERY = 3;
 // 目標を1回達成したときに獲得するポイント。
 const POINTS_PER_GOAL_COMPLETION = 20;
@@ -174,6 +173,9 @@ export class SaveManager {
       },
       placedAssets: [],
       ownedAssets: [],
+      // ショップで買った「まだ配置していない在庫」の数。assetId -> 個数。
+      // 購入するたびに+1、配置するたびに-1する(クラスポイントには影響しない)。
+      assetQuantities: {},
       inventory: {
         acorn: 0,
         berry: 0,
@@ -280,6 +282,10 @@ export class SaveManager {
         goalTitle: p.goalTitle ?? null
       })),
       ownedAssets: Array.isArray(state?.ownedAssets) ? state.ownedAssets : base.ownedAssets,
+      assetQuantities: {
+        ...base.assetQuantities,
+        ...(state?.assetQuantities || {})
+      },
       completedEvents: Array.isArray(state?.completedEvents) ? state.completedEvents : base.completedEvents,
       animals: Array.isArray(state?.animals) ? state.animals : base.animals,
       shopPurchased: Array.isArray(state?.shopPurchased) ? state.shopPurchased : base.shopPurchased,
@@ -414,7 +420,7 @@ export class ShopManager {
   }
 
   listAvailable(state) {
-    return this.items.filter((item) => this.isUnlocked(item, state) && !this.isPurchased(item, state));
+    return this.items.filter((item) => this.isUnlocked(item, state));
   }
 
   isUnlocked(item, state) {
@@ -425,13 +431,21 @@ export class ShopManager {
     return true;
   }
 
+  // 「一度でも買ったことがあるか」。購入回数の制限には使わない(何度でも買える)。
+  // ショップカードに「持っている」バッジを出す判定にだけ使う表示用フラグ。
   isPurchased(item, state) {
     return Array.isArray(state?.shopPurchased) && state.shopPurchased.includes(item.id);
   }
 
+  getQuantity(assetId, state) {
+    return numberOrZero(state?.assetQuantities?.[assetId]);
+  }
+
+  // (v26) 購入は何度でもできる。1回買うごとに、そのアセットの「まだ配置していない在庫」が
+  // 1個増える。配置するとその在庫を1個消費する(placeAsset参照)。ポイントが足りる限り、
+  // 同じ商品を何個でも買って在庫を増やせる。
   canBuy(item, state) {
     if (!item) return false;
-    if (this.isPurchased(item, state)) return false;
     if (!this.isUnlocked(item, state)) return false;
     const price = Number(item.price || 0);
     const points = Number(state?.personalPoints || 0);
@@ -451,11 +465,15 @@ export class ShopManager {
     // 購入で減るのは「所持ポイント」だけ。クラスポイント(森の成長)と累積ポイント(頑張りの記録)は減らさない。
     nextState.personalPoints = Math.max(0, Number(nextState.personalPoints || 0) - Number(item.price || 0));
     nextState.shopPurchased = Array.isArray(nextState.shopPurchased) ? nextState.shopPurchased : [];
-    nextState.shopPurchased.push(item.id);
+    if (!nextState.shopPurchased.includes(item.id)) {
+      nextState.shopPurchased.push(item.id);
+    }
     nextState.ownedAssets = Array.isArray(nextState.ownedAssets) ? nextState.ownedAssets : [];
     if (!nextState.ownedAssets.includes(item.assetId)) {
       nextState.ownedAssets.push(item.assetId);
     }
+    nextState.assetQuantities = { ...(nextState.assetQuantities || {}) };
+    nextState.assetQuantities[item.assetId] = numberOrZero(nextState.assetQuantities[item.assetId]) + 1;
 
     return { ok: true, state: nextState, item };
   }
@@ -823,6 +841,7 @@ export class ForestCore {
   // - 名簿にまだ無ければ item.nickname(ローカルスタンプ分)にフォールバック
   resolveNickname(item) {
     if (!item) return 'わたし';
+    if (item.isSymbolTree || item.spotId === 'symbolTreeSpot') return '森';
     if (!item.studentId) return item.nickname || 'わたし';
     if (this.identity?.studentId && item.studentId === this.identity.studentId) {
       return this.identity.nickname || item.nickname || 'わたし';
@@ -1203,7 +1222,7 @@ export class ForestCore {
   }
 
   // そのアセットを今この状態で「選択・配置してよいか」を判定する唯一の場所。
-  // - ショップに商品があるアセット: ownedAssets に入っている（＝購入済み）ことが必要
+  // - ショップに商品があるアセット: assetQuantities に在庫が1個以上あること(=買ってまだ置いていない分がある)
   // - ショップに商品がないアセット（地面・道など無料の地形）: classPoints が unlock 以上であればOK
   isAssetOwned(assetId) {
     const owned = new Set([
@@ -1213,16 +1232,24 @@ export class ForestCore {
     return owned.has(assetId);
   }
 
+  // 購入したがまだ配置していない「在庫」の数。ショップで買うたびに+1、配置するたびに-1する。
+  getAssetQuantity(assetId) {
+    return numberOrZero(this.state.assetQuantities?.[assetId]);
+  }
+
   canPlaceAsset(assetId) {
     const asset = (this.assets || []).find((a) => a.id === assetId);
     if (!asset) return false;
     // pond_medium_01 / bridge_medium_01 のように、最初からmap.json上に
     // 固定terrainとして存在するアセットは、二重配置を防ぐため常に不可。
     if (asset.placeable === false) return false;
-    if (this.isAssetOwned(assetId)) return true;
 
     const requiresShop = (this.shop.items || []).some((item) => item.assetId === assetId);
-    if (requiresShop) return false;
+    if (requiresShop) {
+      // (v26) 「持っている(=買ったことがある)」だけでは配置できない。
+      // 買った分の在庫(assetQuantities)が残っている間だけ配置できる。
+      return this.getAssetQuantity(assetId) > 0;
+    }
 
     const threshold = numberOrZero(asset.unlock);
     return this.getProgressPercent() >= threshold;
@@ -1325,13 +1352,20 @@ export class ForestCore {
     this.state.placedAssets = Array.isArray(this.state.placedAssets) ? this.state.placedAssets : [];
     this.state.placedAssets.push(item);
 
-    // 配置そのものが進行の主な手段になる。
-    awardPoints(this.state, POINTS_PER_PLACEMENT);
+    // (v26) 配置そのものではポイントは増えない(以前はここでawardPointsしていたが、
+    // 「配置し放題でクラスポイントが無限に増える」不具合の原因だったため廃止)。
+    // ポイントを得る手段は目標達成(completeGoal/approveGoal)や動物の発見のみに一本化する。
+    // ショップで買った分の在庫を1個消費する(在庫が無いアセットは上のcanPlaceAssetで弾かれている)。
+    const requiresShop = (this.shop.items || []).some((it) => it.assetId === assetId);
+    if (requiresShop) {
+      this.state.assetQuantities = this.state.assetQuantities || {};
+      this.state.assetQuantities[assetId] = Math.max(0, this.getAssetQuantity(assetId) - 1);
+    }
     this._lastLocalActionAt = Date.now();
     this._lastLocalActionActor = this.identity?.nickname || 'わたし';
     this.syncMilestones();
     this.persist();
-    return { ok: true, ...item, pointsAwarded: POINTS_PER_PLACEMENT };
+    return { ok: true, ...item };
   }
 
   removePlacedAsset(index) {

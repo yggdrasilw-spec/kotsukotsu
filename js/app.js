@@ -341,11 +341,11 @@ async function bootstrap() {
       shopItems: core.shop.items,
       goalsView,
       logExpanded,
-      confirmRemoveGoalId
+      confirmRemoveGoalId,
+      selectedAssetId: placement.selectedAssetId
     };
 
     const view = renderer.render(renderState);
-    setHTML('assetPalette', view.paletteHtml);
     setHTML('statusPanel', view.statusHtml);
     setHTML('eventLog', view.logHtml);
     setHTML('badgePanel', view.badgeHtml);
@@ -367,9 +367,20 @@ async function bootstrap() {
     if (seasonOverlay) seasonOverlay.dataset.season = state.settings?.season || 'spring';
     setText('zoomValue', `${Math.round(camera.zoom * 100)}%`);
     setText('spotModeValue', placement.mode === 'place' ? '配置' : '移動');
+    // アセットの枠は廃止し、ショップで買ったものをそのまま配置するので、
+    // 「いま何を配置中か／残り何個か」はショップパネルの上に小さく出す。
     const selectedAsset = placement.getSelectedAsset();
-    setText('selectedAssetName', selectedAsset?.name || '未選択');
-    setText('selectedAssetMeta', selectedAsset?.description || selectedAsset?.type || selectedAsset?.id || '—');
+    const placingHost = byId('placingIndicator');
+    if (placingHost) {
+      if (selectedAsset) {
+        const qty = core.getAssetQuantity(selectedAsset.id);
+        placingHost.style.display = '';
+        setText('placingIndicatorName', `${selectedAsset.name || selectedAsset.id} を配置中`);
+        setText('placingIndicatorMeta', qty > 0 ? `のこり ${qty}こ・森をタップして置いてね` : '在庫がありません');
+      } else {
+        placingHost.style.display = 'none';
+      }
+    }
     setText('ownedCount', `${(state.ownedAssets || []).length}`);
     setText('placedCount', `${(state.placedAssets || []).length}`);
     updateThanksOptions(state.classmates || []);
@@ -1006,6 +1017,10 @@ async function bootstrap() {
         assetId: placed.assetId, spotId: placed.spotId, x: placed.x, y: placed.y,
         goalId: placed.goalId, goalTitle: placed.goalTitle
       });
+      // 買った分の在庫を使い切ったら、置けるものが無いままモードだけ残らないよう自動解除する。
+      if (core.getAssetQuantity(placed.assetId) <= 0) {
+        placement.clearSelection();
+      }
     },
     onPlacedInfo: (placedId) => showPlacedInfoPopup(placedId)
   });
@@ -1109,7 +1124,7 @@ async function bootstrap() {
   }
 
   // ---- かんたん表示(低学年・支援級向けに、サイドパネルを1枚ずつに絞る) ----
-  const TAB_IDS = ['goals', 'thanks', 'badges', 'assets', 'shop'];
+  const TAB_IDS = ['goals', 'thanks', 'badges', 'shop'];
   let activeTab = TAB_IDS[0];
 
   function applySimpleMode() {
@@ -1250,14 +1265,21 @@ async function bootstrap() {
   });
 
   document.addEventListener('click', (event) => {
-    const selectBtn = event.target.closest?.('[data-select-asset]');
-    if (!selectBtn) return;
-    const assetId = selectBtn.dataset.selectAsset;
-    if (!core.canPlaceAsset(assetId)) {
-      toast('まだ持っていません。ショップで手に入れてね');
+    const placeBtn = event.target.closest?.('[data-place-shop]');
+    if (!placeBtn) return;
+    const assetId = placeBtn.dataset.placeShop;
+    if (placement.selectedAssetId === assetId) {
+      // もう一度押したら配置モードを解除(トグル)。
+      placement.clearSelection();
+      refresh();
+      return;
+    }
+    if (core.getAssetQuantity(assetId) <= 0) {
+      toast('在庫がありません。ショップで買ってね');
       return;
     }
     placement.selectAsset(assetId);
+    toast('森をタップして配置してね');
     refresh();
   });
 

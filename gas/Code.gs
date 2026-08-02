@@ -197,6 +197,8 @@ function handleCreateClass({ payload }) {
     nextForestUnlocked: false
   });
 
+  ensureSymbolTreePlaced(classCode);
+
   return { ok: true, data: { classCode, clearPoint, mapId } };
 }
 
@@ -245,6 +247,9 @@ function handleSyncState({ classCode, studentId }) {
   if (!klass) return { ok: false, reason: 'class_not_found' };
 
   const forestStateRow = findRow(SHEET_NAMES.FOREST_STATE, 'classCode', classCode) || {};
+  // 移行対策: この仕組みが入る前に作られたクラスにはシンボルツリーの行がまだ無いので、
+  // ここで確認してあれば何もせず、無ければ1本だけ植える(冪等)。
+  ensureSymbolTreePlaced(classCode);
   const placedAssets = readAllRows(SHEET_NAMES.PLACED_ASSETS).filter((r) => r.classCode === classCode);
   const activityLog = readAllRows(SHEET_NAMES.ACTIVITY_LOG)
     .filter((r) => r.classCode === classCode)
@@ -458,6 +463,8 @@ function handleStartNewForest({ classCode }) {
     nextForestUnlocked: false
   });
 
+  ensureSymbolTreePlaced(classCode);
+
   appendActivityLog(classCode, 'new_forest', `🌱 ${nextGeneration}代目の森がはじまりました`);
 
   return { ok: true, data: { generation: nextGeneration, archived } };
@@ -663,6 +670,24 @@ function handleSetRosterThresholds({ classCode, payload }) {
 }
 
 // ---- ポイント加算ヘルパー ----
+
+// シンボルツリーは「クラス全員が同じ1本を見ている」共有オブジェクトとして扱うため、
+// 他の配置物と同じくPlacedAssetsシートに実体を持たせる(studentIdは無し=「森」自身が置いた扱い)。
+// - handleCreateClass / handleStartNewForest からは、その世代の森が始まった直後に呼び、
+//   すぐ全端末に見えるようにする。
+// - handleSyncState からも呼び、まだこの処理が無かった頃に作られた既存クラス(移行前データ)
+//   でも次回の同期時に自動で1本だけ生える形にする。
+// PlacedAssetsシートへ直接1行追加するだけの冪等な処理で、既に居ればなにもしない。
+function ensureSymbolTreePlaced(classCode) {
+  const exists = readAllRows(SHEET_NAMES.PLACED_ASSETS)
+    .some((r) => r.classCode === classCode && r.spotId === 'symbolTreeSpot');
+  if (exists) return;
+  appendRow(SHEET_NAMES.PLACED_ASSETS, {
+    placedId: Utilities.getUuid(), classCode, studentId: '', assetId: 'tree_symbol_01',
+    spotId: 'symbolTreeSpot', x: 50, y: 26, goalId: '', goalTitle: '',
+    createdAt: new Date().toISOString()
+  });
+}
 
 function addClassPoints(classCode, amount) {
   const row = findRow(SHEET_NAMES.FOREST_STATE, 'classCode', classCode);

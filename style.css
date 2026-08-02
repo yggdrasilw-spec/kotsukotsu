@@ -345,84 +345,6 @@ select:focus-visible {
   transform: rotate(25deg) scaleX(-1);
 }
 
-/* 常時表示の環境演出(葉っぱ・きらめき・ちょうちょ)。
-   進行度やアンロックとは無関係に、起動直後から画面に「動き」があるようにするための
-   完全に見た目だけの要素(クリック判定なし)。実際のゲーム内アセット経済には触れない。 */
-.ambient-decor {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.ambient-decor__item {
-  position: absolute;
-  font-size: 22px;
-  opacity: 0;
-  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.12));
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
-}
-
-.ambient-decor__item--1 {
-  left: -6%;
-  top: 18%;
-  animation-name: driftLeaf;
-  animation-duration: 16s;
-  animation-delay: 0s;
-}
-
-.ambient-decor__item--2 {
-  left: 30%;
-  top: -8%;
-  font-size: 14px;
-  animation-name: driftSparkle;
-  animation-duration: 9s;
-  animation-delay: 1.5s;
-}
-
-.ambient-decor__item--3 {
-  left: -6%;
-  top: 55%;
-  animation-name: driftButterfly;
-  animation-duration: 22s;
-  animation-delay: 4s;
-}
-
-.ambient-decor__item--4 {
-  left: -6%;
-  top: 75%;
-  font-size: 16px;
-  animation-name: driftLeaf;
-  animation-duration: 19s;
-  animation-delay: 9s;
-}
-
-@keyframes driftLeaf {
-  0% { opacity: 0; transform: translate(0, 0) rotate(0deg); }
-  8% { opacity: 0.85; }
-  92% { opacity: 0.85; }
-  100% { opacity: 0; transform: translate(112vw, 40px) rotate(200deg); }
-}
-
-@keyframes driftSparkle {
-  0% { opacity: 0; transform: translate(0, 0) scale(0.8); }
-  10% { opacity: 0.9; }
-  90% { opacity: 0.9; }
-  100% { opacity: 0; transform: translate(20px, 130px) scale(1.1); }
-}
-
-@keyframes driftButterfly {
-  0% { opacity: 0; transform: translate(0, 0) rotate(-8deg); }
-  8% { opacity: 0.9; }
-  25% { transform: translate(28vw, -18px) rotate(6deg); }
-  50% { transform: translate(56vw, 14px) rotate(-6deg); }
-  75% { transform: translate(84vw, -10px) rotate(6deg); }
-  92% { opacity: 0.9; }
-  100% { opacity: 0; transform: translate(112vw, 0) rotate(-8deg); }
-}
-
 
 .forest-world {
   position: absolute;
@@ -1780,20 +1702,30 @@ select:focus-visible {
 }
 
 .shop-carousel-item.is-owned::after {
-  content: "✔";
+  content: "";
+  display: none;
+}
+
+.shop-carousel-item__qty {
   position: absolute;
-  top: -6px;
+  bottom: -6px;
   right: -6px;
-  width: 18px;
+  min-width: 18px;
   height: 18px;
-  border-radius: 50%;
+  padding: 0 4px;
+  border-radius: 9px;
   background: var(--primary-color, #6da86f);
   color: #fff;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.shop-carousel-item.is-placing {
+  border-color: #e2a33d;
+  box-shadow: 0 0 0 3px rgba(226, 163, 61, 0.28);
 }
 
 .shop-carousel-item.is-locked {
@@ -1836,7 +1768,21 @@ select:focus-visible {
   color: var(--muted);
 }
 
-.shop-detail__buy {
+.shop-detail__qty {
+  margin-left: 6px;
+  font-weight: 700;
+  color: #2f4a34;
+}
+
+.shop-detail__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.shop-detail__buy,
+.shop-detail__place {
   flex-shrink: 0;
   white-space: nowrap;
 }

@@ -144,14 +144,13 @@ export class InteractionController {
     const cell = this.camera.worldToCell(world.x, world.y);
     const result = this.placement.placeAtCell(this.core, selected.id, cell.x, cell.y);
     if (result.ok) {
-      const points = result.placed?.pointsAwarded;
-      this.onToast(`${selected.name || selected.id} を配置${points ? ` (+${points}ポイント)` : ''}`);
+      this.onToast(`${selected.name || selected.id} を配置`);
       this.onPlace(result.placed);
       this.onDirty();
       return;
     }
     if (result.reason === 'not_owned') {
-      this.onToast('まだ持っていません。ショップで手に入れてね');
+      this.onToast('在庫がありません。ショップで買ってね');
     } else if (result.reason === 'spot_full') {
       this.onToast('このスポットはもういっぱいです');
     } else {

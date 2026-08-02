@@ -118,6 +118,8 @@ export function createForestRenderer({
   function setAssets(nextAssets) {
     assetById = new Map((nextAssets || []).map((asset) => [asset.id, asset]));
     terrainHtmlCache = null;
+    terrainDomSyncedHtml = null;
+    lastPlacedSignature = null;
   }
 
   function setSpots(nextSpots) {
@@ -371,7 +373,8 @@ export function createForestRenderer({
     const items = Array.isArray(state?.shopItems) ? state.shopItems : [];
     const progress = computeProgressPercent(state);
     const points = Number(state?.personalPoints || 0);
-    const purchased = new Set(Array.isArray(state?.shopPurchased) ? state.shopPurchased : []);
+    const quantities = state?.assetQuantities || {};
+    const selectedAssetId = state?.selectedAssetId || null;
     if (!items.length) return '<p class="muted">ショップ商品がまだありません。</p>';
 
     const sections = new Map();
@@ -383,33 +386,37 @@ export function createForestRenderer({
 
     // stamp_card.htmlのスタンプピッカーと同じ「1行カルーセル」方式。
     // カテゴリが何点あっても常に1行に収まり、中央＝いま見ている商品として
-    // 詳細（名前・価格・購入ボタン、または解放条件）を下の.shop-detailに出す。
+    // 詳細（名前・価格・購入/配置ボタン、または解放条件）を下の.shop-detailに出す。
     // 実際の中央寄せ・ドラッグ・詳細更新はjs/shop-carousel.jsが担当するため、
     // ここでは各カードにdata属性で必要な情報を持たせるだけにとどめる。
     return [...sections.entries()].map(([category, entries]) => {
       const cardsHtml = entries.map((item) => {
         const price = Number(item?.price || 0);
-        const owned = purchased.has(item.id);
+        const qty = Number(quantities[item.assetId] || 0);
         const unlockProgress = Number(item?.unlockCondition?.progress || 0);
         const unlocked = progress >= unlockProgress;
-        const canBuy = unlocked && !owned && points >= price;
+        const canBuy = unlocked && points >= price;
+        const isPlacing = selectedAssetId === item.assetId;
         const asset = assetById.get(item.assetId) || null;
         const { image, glyph, color } = resolveVisual(asset);
         const icon = glyph
           ? `<div class="shop-card__icon shop-card__icon--glyph"><span>${escapeHtml(glyph)}</span></div>`
           : `<div class="shop-card__icon" style="background-color:${color || '#dcefc9'};background-image:url('${image}')"></div>`;
         return `
-          <div class="shop-carousel-item ${owned ? 'is-owned' : ''} ${unlocked ? '' : 'is-locked'}"
+          <div class="shop-carousel-item ${qty > 0 ? 'is-owned' : ''} ${unlocked ? '' : 'is-locked'} ${isPlacing ? 'is-placing' : ''}"
                data-shop-item
                data-id="${escapeHtml(item.id)}"
+               data-asset-id="${escapeHtml(item.assetId)}"
                data-name="${escapeHtml(item.name || item.id)}"
                data-desc="${escapeHtml(item.description || '')}"
                data-price="${price}"
-               data-owned="${owned ? '1' : '0'}"
+               data-qty="${qty}"
                data-unlocked="${unlocked ? '1' : '0'}"
                data-unlock-progress="${unlockProgress}"
-               data-can-buy="${canBuy ? '1' : '0'}">
+               data-can-buy="${canBuy ? '1' : '0'}"
+               data-is-placing="${isPlacing ? '1' : '0'}">
             ${icon}
+            ${qty > 0 ? `<span class="shop-carousel-item__qty">×${qty}</span>` : ''}
           </div>
         `;
       }).join('');
@@ -683,6 +690,35 @@ export function createForestRenderer({
     return terrainHtmlCache;
   }
 
+  // 地形(terrain)はセッション中まず変化しない(mapは起動時に1回読み込むだけ)のに、
+  // 以前は毎回のrender()でlayers.terrain.innerHTMLを丸ごと書き直していた。
+  // これだと配置/購入/20秒おきの同期など「地形とは無関係な理由」でrefresh()される
+  // たびに、地面や道の背景画像タイルを全部作り直す→再ペイントすることになり、
+  // 低スペック機(Chromebook等)では一瞬タイルが抜けた「モザイク状」の表示になっていた。
+  // 実際にterrainHtmlCacheの中身が変わった(=setAssets等でキャッシュがnullに戻された)
+  // ときだけDOMへ反映するようにする。
+  let terrainDomSyncedHtml = null;
+  function applyTerrainIfChanged() {
+    if (!layers.terrain) return;
+    const html = getTerrainHtml();
+    if (html === terrainDomSyncedHtml) return;
+    layers.terrain.innerHTML = html;
+    terrainDomSyncedHtml = html;
+  }
+
+  // 配置物(placedAssets)も、内容(何が/どこに置かれているか、シンボルツリーの
+  // 成長度合い)が変わっていなければDOMを書き直さない。renderAnimalsOnlyと同じ考え方。
+  let lastPlacedSignature = null;
+  function applyPlacedAssetsIfChanged(state) {
+    if (!layers.assets) return;
+    const placedAssets = Array.isArray(state?.placedAssets) ? state.placedAssets : [];
+    const progressPercent = computeProgressPercent(state);
+    const signature = `${progressPercent}|${placedAssets.map((p) => `${p.placedId}:${p.assetId}:${p.x}:${p.y}`).join(',')}`;
+    if (signature === lastPlacedSignature) return;
+    lastPlacedSignature = signature;
+    layers.assets.innerHTML = renderPlacedAssets(state);
+  }
+
   // カメラのパン/ズームだけを反映する軽量パス。
   // DOMのHTML再構築は行わず、transform関連のスタイルだけ更新する。
   // ポインタのドラッグ中やrAFループの毎フレームはこちらだけを呼べばよい。
@@ -715,17 +751,15 @@ export function createForestRenderer({
   function render(state) {
     updateCamera();
 
-    const placedHtml = renderPlacedAssets(state);
     const spotHtml = renderSpots(state);
     const gridHtml = renderGridOverlay();
 
-    if (layers.terrain) layers.terrain.innerHTML = getTerrainHtml();
-    if (layers.assets) layers.assets.innerHTML = placedHtml;
+    applyTerrainIfChanged();
+    applyPlacedAssetsIfChanged(state);
     if (layers.debug) layers.debug.innerHTML = `${gridHtml}${spotHtml}`;
     renderAnimalsOnly(state);
 
     return {
-      paletteHtml: renderPalette(state),
       statusHtml: renderStatus(state),
       logHtml: renderEventLog(state, Boolean(state?.logExpanded)),
       badgeHtml: renderBadgePanel(state?.evaluatedBadges || []),

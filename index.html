@@ -69,12 +69,6 @@
       <main class="center-stage">
         <div id="appMessage" class="app-message"><ruby>森<rt>もり</rt></ruby>を<ruby>読<rt>よ</rt></ruby>み<ruby>込<rt>こ</rt></ruby>み<ruby>中<rt>ちゅう</rt></ruby>…</div>
         <div id="forestViewport" class="forest-viewport">
-          <div id="ambientDecor" class="ambient-decor" aria-hidden="true">
-            <span class="ambient-decor__item ambient-decor__item--1">🍃</span>
-            <span class="ambient-decor__item ambient-decor__item--2">✨</span>
-            <span class="ambient-decor__item ambient-decor__item--3">🦋</span>
-            <span class="ambient-decor__item ambient-decor__item--4">🍃</span>
-          </div>
           <div id="forestWorld" class="forest-world">
             <div id="layerTerrain" class="forest-layer forest-layer--terrain"></div>
             <div id="layerAssets" class="forest-layer forest-layer--assets"></div>
@@ -184,18 +178,13 @@
       </main>
 
       <aside class="sidebar sidebar--right">
-        <section class="panel" data-tab="assets">
-          <h2>アセット</h2>
-          <div class="selected-asset">
-            <div id="selectedAssetName" class="selected-asset__name"><ruby>未選択<rt>みせんたく</rt></ruby></div>
-            <div id="selectedAssetMeta" class="selected-asset__meta">—</div>
-            <div class="selected-asset__hint">アイテムを<ruby>押<rt>お</rt></ruby>してから、<ruby>森<rt>もり</rt></ruby>をクリックして<ruby>配置<rt>はいち</rt></ruby>。</div>
-          </div>
-          <div id="assetPalette" class="asset-palette"></div>
-        </section>
-
         <section class="panel" data-tab="shop">
           <h2>ショップ</h2>
+          <div id="placingIndicator" class="selected-asset" style="display:none;">
+            <div id="placingIndicatorName" class="selected-asset__name">—</div>
+            <div id="placingIndicatorMeta" class="selected-asset__meta">—</div>
+          </div>
+          <div class="selected-asset__hint">ショップで<ruby>買<rt>か</rt></ruby>って、「<ruby>配置<rt>はいち</rt></ruby>する」を<ruby>押<rt>お</rt></ruby>してから、<ruby>森<rt>もり</rt></ruby>をタップしてね。</div>
           <div id="shopPanel" class="shop-panel"></div>
         </section>
       </aside>
@@ -207,7 +196,6 @@
       <button type="button" class="panel-tabs__btn" data-tab-target="thanks">🧡 ありがとう</button>
       <button type="button" class="panel-tabs__btn" data-tab-target="classpower">🌟 クラスのちから</button>
       <button type="button" class="panel-tabs__btn" data-tab-target="badges">🏅 バッジ</button>
-      <button type="button" class="panel-tabs__btn" data-tab-target="assets">🌿 アセット</button>
       <button type="button" class="panel-tabs__btn" data-tab-target="shop">🛍️ ショップ</button>
     </nav>
   </div>

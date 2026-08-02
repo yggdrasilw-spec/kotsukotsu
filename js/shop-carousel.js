@@ -20,13 +20,15 @@ function readItem(el) {
   return {
     el,
     id: el.dataset.id,
+    assetId: el.dataset.assetId,
     name: el.dataset.name,
     desc: el.dataset.desc,
     price: Number(el.dataset.price || 0),
-    owned: el.dataset.owned === '1',
+    qty: Number(el.dataset.qty || 0),
     unlocked: el.dataset.unlocked === '1',
     unlockProgress: Number(el.dataset.unlockProgress || 0),
-    canBuy: el.dataset.canBuy === '1'
+    canBuy: el.dataset.canBuy === '1',
+    isPlacing: el.dataset.isPlacing === '1'
   };
 }
 
@@ -36,23 +38,26 @@ function renderDetail(detailEl, item) {
     return;
   }
   let metaHtml;
-  let buyHtml;
-  if (item.owned) {
-    metaHtml = `<div class="shop-detail__meta">購入ずみ</div>`;
-    buyHtml = `<button type="button" class="btn shop-detail__buy" disabled>購入済み</button>`;
-  } else if (!item.unlocked) {
+  let actionsHtml;
+  if (!item.unlocked) {
     metaHtml = `<div class="shop-detail__meta">🔒 森の成長 ${item.unlockProgress}% で解放</div>`;
-    buyHtml = `<button type="button" class="btn shop-detail__buy" disabled>まだひみつ</button>`;
+    actionsHtml = `<button type="button" class="btn shop-detail__buy" disabled>まだひみつ</button>`;
   } else {
-    metaHtml = `<div class="shop-detail__meta">${item.price}ポイント</div>`;
-    buyHtml = `<button type="button" class="btn shop-detail__buy" data-buy-shop="${item.id}" ${item.canBuy ? '' : 'disabled'}>購入</button>`;
+    const qtyHtml = item.qty > 0 ? `<span class="shop-detail__qty">のこり ${item.qty}こ</span>` : '';
+    metaHtml = `<div class="shop-detail__meta">${item.price}ポイント ${qtyHtml}</div>`;
+    const buyLabel = item.qty > 0 ? 'もっと買う' : '購入';
+    const buyBtn = `<button type="button" class="btn shop-detail__buy" data-buy-shop="${item.id}" ${item.canBuy ? '' : 'disabled'}>${buyLabel}</button>`;
+    const placeBtn = item.qty > 0
+      ? `<button type="button" class="btn btn--accent shop-detail__place" data-place-shop="${item.assetId}">${item.isPlacing ? '配置中…' : '配置する'}</button>`
+      : '';
+    actionsHtml = `${placeBtn}${buyBtn}`;
   }
   detailEl.innerHTML = `
     <div class="shop-detail__text">
       <div class="shop-detail__name">${item.name}</div>
       ${metaHtml}
     </div>
-    ${buyHtml}
+    <div class="shop-detail__actions">${actionsHtml}</div>
   `;
 }
 
