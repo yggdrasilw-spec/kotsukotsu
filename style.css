@@ -1111,29 +1111,23 @@ select:focus-visible {
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.18));
 }
 
+/* 地形(地面・小道・池・橋)はまだ本物の画像が無いため、以前は角丸・グラデーション・
+   いびつな楕円の border-radius で「それっぽい形」を演出していたが、境目やつなぎ目が
+   不自然に見えるため撤廃。今は単純な矩形のまま、色(JS側でplaceholderColorを
+   background-colorとして指定)か絵文字だけで表す。本物の画像が揃えばここは経由しなくなる。 */
 .forest-node--terrain {
-  border-radius: 18px;
-  border: 1px solid rgba(74, 102, 56, 0.12);
-  background: linear-gradient(180deg, rgba(125, 176, 107, 0.22), rgba(79, 125, 65, 0.08));
 }
 
 .forest-node--ground {
-  background: linear-gradient(180deg, rgba(134, 186, 107, 0.22), rgba(86, 136, 71, 0.08));
 }
 
 .forest-node--path {
-  background: linear-gradient(180deg, rgba(228, 207, 154, 0.56), rgba(196, 171, 117, 0.24));
-  border-radius: 999px;
 }
 
 .forest-node--pond {
-  background: linear-gradient(180deg, rgba(153, 226, 255, 0.5), rgba(82, 160, 207, 0.3));
-  border-radius: 42% 58% 47% 53% / 45% 43% 57% 55%;
 }
 
 .forest-node--bridge {
-  background: linear-gradient(180deg, rgba(177, 132, 79, 0.62), rgba(133, 92, 47, 0.32));
-  border-radius: 999px;
 }
 
 .forest-node--flower,

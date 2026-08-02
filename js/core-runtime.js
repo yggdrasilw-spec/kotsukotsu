@@ -1376,6 +1376,28 @@ export class ForestCore {
     return true;
   }
 
+  // 配置直後にサーバーへ送信した結果、本物のplacedId(GAS発行)が返ってきたら差し替える。
+  // ローカルで仮発行したplacedId(local_...)のままだと、以後のpull()で届く
+  // サーバー側のリストと同一物として突き合わせられないため。
+  replacePlacedAssetId(oldPlacedId, newPlacedId) {
+    const item = (this.state.placedAssets || []).find((p) => p.placedId === oldPlacedId);
+    if (!item || !newPlacedId) return false;
+    item.placedId = newPlacedId;
+    this.persist();
+    return true;
+  }
+
+  // サーバーへの送信が失敗した配置を取り消す。送れていないのに端末側にだけ
+  // 見えている状態を残さない(=あとで消えて見える不具合を防ぐ)ため。
+  discardPlacedAsset(placedId) {
+    const list = this.state.placedAssets || [];
+    const index = list.findIndex((p) => p.placedId === placedId);
+    if (index === -1) return false;
+    list.splice(index, 1);
+    this.persist();
+    return true;
+  }
+
   buy(itemId) {
     const result = this.shop.buy(itemId, this.state);
     if (!result.ok) return result;

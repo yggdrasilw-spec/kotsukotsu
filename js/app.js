@@ -169,7 +169,10 @@ async function bootstrap() {
   core.setShopItems(shopItems);
 
   const apiClient = new ApiClient();
-  const classSync = new ClassSync({ apiClient, core, onSync: () => refresh() });
+  const classSync = new ClassSync({
+    apiClient, core, onSync: () => refresh(),
+    onPlaceFailed: () => toast('うまく置けなかったみたい。もう一度おいてみてね')
+  });
   // 「だれが置いたか」の記録用。クラス未接続ならローカルの「わたし」のまま。
   core.setIdentity({ studentId: classSync.info?.studentId || null, nickname: classSync.info?.nickname || 'わたし' });
 
@@ -934,6 +937,7 @@ async function bootstrap() {
       for (const placedItem of summary.autoPlaced) {
         spawnNames.push(assets.find((a) => a.id === placedItem.assetId)?.name || placedItem.assetId);
         classSync.pushPlaceAsset({
+          placedId: placedItem.placedId,
           assetId: placedItem.assetId, spotId: placedItem.spotId, x: placedItem.x, y: placedItem.y,
           goalId: null, goalTitle: null
         });
@@ -1014,6 +1018,7 @@ async function bootstrap() {
     onPlace: (placed) => {
       if (!placed) return;
       classSync.pushPlaceAsset({
+        placedId: placed.placedId,
         assetId: placed.assetId, spotId: placed.spotId, x: placed.x, y: placed.y,
         goalId: placed.goalId, goalTitle: placed.goalTitle
       });

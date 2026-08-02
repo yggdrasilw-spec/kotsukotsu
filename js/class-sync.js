@@ -12,13 +12,20 @@
 const LOCAL_INFO_KEY = 'kokotsu_class_info_v1';
 
 export class ClassSync {
-  constructor({ apiClient, core, onSync } = {}) {
+  constructor({ apiClient, core, onSync, onPlaceFailed } = {}) {
     this.apiClient = apiClient;
     this.core = core;
     this.onSync = onSync || (() => {});
+    this.onPlaceFailed = onPlaceFailed || (() => {});
     this.info = this.loadLocalInfo();
     this.lastPulledAt = null;
     this.timer = null;
+    // 配置直後、サーバーへの送信がまだ終わっていない(成功/失敗どちらの返事も来ていない)
+    // placedId をここに一時的に覚えておく。pull()が20秒おきに全件を置き換えるとき、
+    // ここに載っている分だけは「まだサーバー側に反映されていないだけ」として消さずに残す。
+    // これが無いと、置いた直後にたまたまpull()が走ると、置いたはずの物が一瞬(場合によっては
+    // 送信が失敗した場合はそのまま)消えて見える不具合になる。
+    this.pendingPlacements = new Set();
     if (this.info?.baseUrl) this.apiClient.setBaseUrl(this.info.baseUrl);
   }
 
@@ -77,9 +84,27 @@ export class ClassSync {
 
   // ---- 書き込み系: fire-and-forgetでGASへ送る(失敗してもローカルの体験は止めない) ----
 
-  pushPlaceAsset({ assetId, spotId, x, y, goalId, goalTitle }) {
+  pushPlaceAsset({ placedId, assetId, spotId, x, y, goalId, goalTitle }) {
     if (!this.isConfigured()) return;
-    this.apiClient.placeAsset({ ...this._ids(), assetId, spotId, x, y, goalId, goalTitle }).catch(() => {});
+    if (placedId) this.pendingPlacements.add(placedId);
+    this.apiClient.placeAsset({ ...this._ids(), assetId, spotId, x, y, goalId, goalTitle }).then((res) => {
+      if (placedId) this.pendingPlacements.delete(placedId);
+      if (res?.ok) {
+        if (placedId && res.data?.placedId) this.core.replacePlacedAssetId(placedId, res.data.placedId);
+      } else if (placedId) {
+        // サーバーに届かなかった配置は端末側にも残さない(黙って後から消えて見えるのを防ぐ)。
+        this.core.discardPlacedAsset(placedId);
+        this.onPlaceFailed();
+      }
+      this.onSync(this.core.getState());
+    }).catch(() => {
+      if (placedId) {
+        this.pendingPlacements.delete(placedId);
+        this.core.discardPlacedAsset(placedId);
+        this.onPlaceFailed();
+      }
+      this.onSync(this.core.getState());
+    });
   }
 
   pushRemovePlacedAsset(placedId) {
@@ -316,11 +341,18 @@ export class ClassSync {
     // 配置物はクラス全員分をGASが正として持っているので、そのまま置き換える。
     // goalId/goalTitleは「置いたときに直前にクリアしていた目標」(pushPlaceAssetで送信、PlacedAssetsシートに保存)。
     // nicknameはここでは持たず、表示側で studentId -> studentDirectory を都度引く(名簿が後から更新されても最新反映されるように)。
+    const serverPlacedIds = new Set((placedAssets || []).map((p) => p.placedId));
+    // まだサーバーへの送信が終わっていない(pendingPlacements)分は、サーバー由来のリストにまだ
+    // 含まれていなくても、置いたはずの物が一瞬消えて見えないようここでローカルの内容を残しておく。
+    // 送信が確認できた時点(pushPlaceAssetのthen節)でpendingPlacementsから外れるので、
+    // 二重に残り続けることはない。
+    const stillInFlight = (state.placedAssets || [])
+      .filter((p) => this.pendingPlacements.has(p.placedId) && !serverPlacedIds.has(p.placedId));
     state.placedAssets = (placedAssets || []).map((p) => ({
       assetId: p.assetId, spotId: p.spotId || null, x: Number(p.x) || 0, y: Number(p.y) || 0,
       placedId: p.placedId, studentId: p.studentId, createdAt: p.createdAt,
       goalId: p.goalId || null, goalTitle: p.goalTitle || null
-    }));
+    })).concat(stillInFlight);
     // シンボルツリーも他の配置物と同じくGASのPlacedAssetsが正(クラス全員で同じ1本を見る)。
     // サーバー側(ensureSymbolTreePlaced)が常に1本だけ存在することを保証しているため、
     // クライアント側で個別に植え直す処理は不要。
