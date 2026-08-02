@@ -1114,8 +1114,17 @@ select:focus-visible {
 /* 地形(地面・小道・池・橋)はまだ本物の画像が無いため、以前は角丸・グラデーション・
    いびつな楕円の border-radius で「それっぽい形」を演出していたが、境目やつなぎ目が
    不自然に見えるため撤廃。今は単純な矩形のまま、色(JS側でplaceholderColorを
-   background-colorとして指定)か絵文字だけで表す。本物の画像が揃えばここは経由しなくなる。 */
+   background-colorとして指定)か絵文字だけで表す。本物の画像が揃えばここは経由しなくなる。
+   なお .forest-node 側の共通スタイル(角丸カード風の背景・地面に落ちる影の楕円)は
+   花や木などの「置き物」向けの演出で、地形そのものには不要(それが矩形/楕円として
+   残って見えてしまっていた)ため、ここで打ち消す。 */
 .forest-node--terrain {
+  border-radius: 0;
+  background-color: transparent;
+}
+
+.forest-node--terrain::after {
+  display: none;
 }
 
 .forest-node--ground {
