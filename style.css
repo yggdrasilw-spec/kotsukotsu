@@ -332,7 +332,9 @@ ruby rt {
   top: 0;
   left: 0;
   transform-origin: 0 0;
-  will-change: transform;
+  /* will-change は render.js が zoom に応じて動的に設定する。
+     常時 GPU レイヤー化するとワールド全体(11200×8960)のテクスチャが
+     必要になり、低ズーム時にGPU上限を超えて描画が壊れるため。 */
 }
 .forest-layer {
   position: absolute;
@@ -341,6 +343,7 @@ ruby rt {
   width: 100%;
   height: 100%;
   pointer-events: none;
+  contain: layout style paint;
 }
 .forest-layer--terrain { z-index: 1; }
 .forest-layer--assets { z-index: 2; pointer-events: auto; }

@@ -60,6 +60,15 @@ function symbolTreeScale(progressPercent) {
   return 1 + (p / 100) * 5;
 }
 
+// ビューポートカリング: ワールド座標上の矩形が、カメラの可視範囲と
+// 重なっているかを判定する。padding は画面端のちらつきを防ぐマージン(px)。
+function isInView(left, top, width, height, visRect, padding) {
+  return !(left + width  < visRect.x - padding ||
+           left          > visRect.x + visRect.width + padding ||
+           top  + height < visRect.y - padding ||
+           top           > visRect.y + visRect.height + padding);
+}
+
 function makeNodeHtml({ id, title, image, className = '', left, top, width, height, layer, extraData = '', label = '', tileSize = null }) {
   const style = [
     `left:${left}px`,
@@ -103,6 +112,7 @@ export function createForestRenderer({
     terrainHtmlCache = null;
     terrainDomSyncedHtml = null;
     lastPlacedSignature = null;
+    placedNodeBounds = new Map();
   }
 
   function setSpots(nextSpots) {
@@ -196,14 +206,18 @@ export function createForestRenderer({
     }).join('');
   }
 
-
   let placedNodesMap = new Map();
+  // カリング用: 各配置物のワールド座標を保持し、パン/ズーム時に
+  // updatePlacedVisibility() で display を切り替える。
+  let placedNodeBounds = new Map();
+  const CULL_PADDING = 300; // カリングマージン(px)。画面端ちらつき防止用。
 
   function renderPlacedAssets(state) {
     if (!layers.assets) return;
     const placedAssets = Array.isArray(state?.placedAssets) ? state.placedAssets : [];
     const progressPercent = computeProgressPercent(state);
     const currentPlacedIds = new Set();
+    const visRect = camera.getVisibleRect();
 
     placedAssets.forEach((item, index) => {
       const placedId = item.placedId || `placed-${index}`;
@@ -223,6 +237,11 @@ export function createForestRenderer({
         placedNodesMap.set(placedId, el);
       }
       
+      // カリング用にワールド座標を記録
+      placedNodeBounds.set(placedId, { left: pos.left, top: pos.top, width: pos.width, height: pos.height });
+      const visible = isInView(pos.left, pos.top, pos.width, pos.height, visRect, CULL_PADDING);
+      el.style.display = visible ? '' : 'none';
+
       if (el.className !== className) el.className = className;
       el.dataset.id = `placed-${index}`;
       el.dataset.layer = escapeHtml(asset?.layer || 'asset');
@@ -260,16 +279,34 @@ export function createForestRenderer({
       if (!currentPlacedIds.has(placedId)) {
         el.remove();
         placedNodesMap.delete(placedId);
+        placedNodeBounds.delete(placedId);
       }
+    }
+  }
+
+  // パン/ズーム中に呼ばれる軽量カリング。DOM構造には触れず display だけ切り替える。
+  function updatePlacedVisibility() {
+    if (!placedNodeBounds.size) return;
+    const visRect = camera.getVisibleRect();
+    for (const [placedId, bounds] of placedNodeBounds.entries()) {
+      const el = placedNodesMap.get(placedId);
+      if (!el) continue;
+      const visible = isInView(bounds.left, bounds.top, bounds.width, bounds.height, visRect, CULL_PADDING);
+      const current = el.style.display;
+      const next = visible ? '' : 'none';
+      if (current !== next) el.style.display = next;
     }
   }
 
 
   function renderAnimals(state) {
     const animals = Array.isArray(state?.animals) ? state.animals : [];
+    const visRect = camera.getVisibleRect();
     return animals.map((animal) => {
       const asset = assetById.get(animal.assetId) || null;
       const pos = assetPosition(animal, asset, camera.cellSize);
+      // ビューポート外の動物はスキップ
+      if (!isInView(pos.left, pos.top, pos.width, pos.height, visRect, CULL_PADDING)) return '';
       const { image } = resolveVisual(asset);
       return makeNodeHtml({
         id: animal.id,
@@ -740,6 +777,14 @@ export function createForestRenderer({
   // カメラのパン/ズームだけを反映する軽量パス。
   // DOMのHTML再構築は行わず、transform関連のスタイルだけ更新する。
   // ポインタのドラッグ中やrAFループの毎フレームはこちらだけを呼べばよい。
+  //
+  // will-change の動的制御:
+  //   zoom >= 0.35 → will-change: transform(GPUレイヤー化でなめらかなパン/ズーム)
+  //   zoom <  0.35 → will-change: auto(GPUテクスチャ爆発を回避)
+  // 閾値 0.35 は、ワールド 11200×8960 を縮小した際のテクスチャサイズが
+  // 多くのGPUの上限(4096〜8192px)に収まる安全圏として設定。
+  const WILL_CHANGE_ZOOM_THRESHOLD = 0.35;
+
   function updateCamera() {
     camera.clampToBounds();
     if (viewportEl) {
@@ -749,7 +794,12 @@ export function createForestRenderer({
       worldEl.style.width = `${map.width * camera.cellSize}px`;
       worldEl.style.height = `${map.height * camera.cellSize}px`;
       worldEl.style.transform = camera.getTransform();
+      // 低ズーム時は GPU レイヤー化を解除して、テクスチャサイズ上限超えを防ぐ
+      const wc = camera.zoom >= WILL_CHANGE_ZOOM_THRESHOLD ? 'transform' : 'auto';
+      if (worldEl.style.willChange !== wc) worldEl.style.willChange = wc;
     }
+    // パン/ズーム中にも配置物のカリングを更新
+    updatePlacedVisibility();
   }
 
   // 動物は少しずつ動くので、毎フレーム呼んでも良いように差分チェック付きで
@@ -758,8 +808,10 @@ export function createForestRenderer({
   let lastAnimalsSignature = null;
   function renderAnimalsOnly(state) {
     const animals = Array.isArray(state?.animals) ? state.animals : [];
-    // 位置とmoodだけを見た軽量な署名。中身が変わっていなければ再描画しない。
-    const signature = animals.map((a) => `${a.id}:${a.x}:${a.y}:${a.mood}:${a.state}`).join('|');
+    // 位置とmoodに加え、カメラ位置もシグネチャに含める。
+    // カリングの結果はカメラ位置で変わるため、パン/ズーム時にも再描画が必要。
+    const camSig = `${Math.round(camera.x)}:${Math.round(camera.y)}:${Math.round(camera.zoom * 100)}`;
+    const signature = `${camSig}|${animals.map((a) => `${a.id}:${a.x}:${a.y}:${a.mood}:${a.state}`).join('|')}`;
     if (signature === lastAnimalsSignature) return false;
     lastAnimalsSignature = signature;
     if (layers.animals) layers.animals.innerHTML = renderAnimals(state);

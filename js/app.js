@@ -255,7 +255,7 @@ async function bootstrap() {
     const worldWidth = map.width * camera.cellSize;
     const worldHeight = map.height * camera.cellSize;
     const fit = Math.min(camera.viewportWidth / worldWidth, camera.viewportHeight / worldHeight);
-    return Math.max(0.06, fit * 0.94); // 少し余白を残す
+    return Math.max(0.15, fit * 0.94); // 少し余白を残す
   }
   function applyDynamicMinZoom() {
     camera.minZoom = Math.min(CONFIG.minZoom, computeFitZoom());
