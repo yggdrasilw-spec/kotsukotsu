@@ -117,16 +117,16 @@ export class SaveManager {
       // イベント発生・バッジ解放・アイテム解放の判定は、すべて classPoints÷clearPoint の「%」を基準にする
       // (computeProgressPercent参照)。classPoints自体は森ごとにリセットされる(startNewForest参照)。
       classPoints: 0,
-      // クラスに関する設定。GAS接続時はclass-sync.jsのpull()がサーバー値で上書きする。
+      // クラスに関する設定。サーバー同期時はFirebaseSyncがFirestoreの値で上書きする。
       classInfo: {
         classCode: null,
         teacherName: '',
         // 完全クリア(=進行度100%)とみなすまでに必要なクラスポイント。先生がteacher.htmlで設定できる。
-        // ローカル単独時はこの既定値(1000。teacher.html/GAS側のデフォルトと揃えてある)がそのまま使われる。
+        // ローカル単独時はこの既定値(1000。teacher.html/Firebase側のデフォルトと揃えてある)がそのまま使われる。
         clearPoint: 1000
       },
       // 先生が「次の森を解放する」までは次の森へ進めない(v23)。ローカル単独時(先生がいない)は
-      // 常にtrueのままにしておき、クラス接続時はclass-sync.jsのpull()がサーバー値で上書きする。
+      // 常にtrueのままにしておき、クラス接続時はFirebaseSyncがFirestoreの値で上書きする。
       nextForestUnlocked: true,
       // ---- 森のライフサイクル ----
       // 1つの森は進行度100%で「完成」する。完成後に子どもが「新しい森を始める」を選ぶと、
@@ -155,7 +155,7 @@ export class SaveManager {
       // 花などを配置した瞬間にこの値をスタンプすることで、「その花はどの目標のときに置いたか」を
       // ゆるく紐付ける(ポイント自体は共有のプールなので、厳密な出納ではなく「そのとき頑張っていた目標」という位置づけ)。
       lastCompletedGoal: null, // { goalId, goalTitle, at }
-      // studentId -> nickname のクラス名簿。GAS接続時にclass-sync.jsのpull()が埋める(ローカル単独時は空のまま)。
+      // studentId -> nickname のクラス名簿。サーバー同期時にFirebaseSyncが埋める(ローカル単独時は空のまま)。
       studentDirectory: {},
       activityLog: [],  // { id, type, message, createdAt } - クラス全員が見る最新ログ(最大50件)
       thanksLog: [],    // { id, toName, fromLabel, date, createdAt } - 「ありがとう」送信の記録
@@ -1340,7 +1340,7 @@ export class ForestCore {
       spotId,
       x,
       y,
-      // GAS接続時はサーバー発行のplacedIdで上書きされる(class-sync.jsのpull()参照)。
+      // サーバー同期時はFirestoreのplacedIdで同期される。
       // ローカル単独時もタップ詳細表示のキーとして使えるよう、その場でも発行しておく。
       placedId: `local_${now.getTime()}_${Math.random().toString(36).slice(2, 7)}`,
       createdAt: now.toISOString(),

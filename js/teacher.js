@@ -1,5 +1,3 @@
-import { ApiClient } from './api-client.js';
-import { CONFIG } from './config.js';
 import { FirebaseClient } from './firebase-client.js';
 
 const LOCAL_KEY = 'kokotsu_teacher_info_v1';
@@ -79,7 +77,7 @@ function rosterLastSeenLabel(entry) {
   return `${entry.daysSinceLogin}日前`;
 }
 
-// 児童一覧ダッシュボードを描画する。roster: buildStudentsRoster()(GAS側)が返す配列。
+// 児童一覧ダッシュボードを描画する。
 function renderStudentRoster(roster, { attentionOnly = false } = {}) {
   const list = Array.isArray(roster) ? roster : [];
 
@@ -136,15 +134,11 @@ function renderStudentRoster(roster, { attentionOnly = false } = {}) {
 }
 
 // 過去の森(forestHistory)を新しい世代が上に来る順で並べ、折りたたみ式の年表つきで表示する。
-// 仕様の「過去の森も振り返れる」に対応する(docs/14参照)。
 function renderForestRecord({ forestState }) {
   const generation = Number(forestState?.forestGeneration) || 1;
   const isCompleted = forestState?.forestStatus === 'completed';
   const status = isCompleted ? '完成ずみ' : '育成中';
-  const clearPoint = Number(forestState?.clearPoint) || 0;
 
-  // (v23) 完成済みで、まだ先生が解放していなければ「次の森を解放する」ボタンを出す。
-  // 児童側はこのボタンが押されるまで「新しい森をはじめる」を実行できない。
   let releaseHtml = '';
   if (isCompleted) {
     releaseHtml = forestState?.nextForestUnlocked
@@ -190,119 +184,150 @@ function renderForestRecord({ forestState }) {
 }
 
 async function main() {
-  const apiClient = new ApiClient();
+  const firebaseClient = new FirebaseClient();
   let info = loadInfo();
-  let autoTimer = null;
+  let studentsMap = new Map();
+  let lastRoster = [];
 
   const connectView = byId('connectView');
   const dashboardView = byId('dashboardView');
-  let lastRoster = [];
-
-  // GASのURLはconfig.js(js/config.js の CONFIG.gasBaseUrl)で一元管理する。
-  // 児童側(index.html)と同じ設定を見るようにして、先生が毎回手打ちしなくて済むようにする。
-  if (!CONFIG.gasBaseUrl) {
-    showMessage('config.js に gasBaseUrl が設定されていません。js/config.js を確認してください。');
-    return;
-  }
-  apiClient.setBaseUrl(CONFIG.gasBaseUrl);
 
   function setView(configured) {
     connectView.style.display = configured ? 'none' : 'grid';
     dashboardView.style.display = configured ? 'grid' : 'none';
   }
 
-  function stopAuto() {
-    if (autoTimer) window.clearInterval(autoTimer);
-    autoTimer = null;
+  function startRealtimeListeners(classCode) {
+    firebaseClient.cleanup();
+
+    // (1) クラス情報・森の進行度
+    firebaseClient.listenClass({
+      classCode,
+      onData: (data) => {
+        if (!data) return;
+        showMessage('');
+        const classInfo = data.classInfo || {};
+        const forestState = data.forestState || {};
+
+        byId('classCodeDisplay').textContent = classInfo.classCode || classCode;
+        byId('approvalModeSelect').value = classInfo.goalApprovalMode === 'teacher' ? 'teacher' : 'self';
+        byId('maxGoalsInput').value = classInfo.maxGoals || 3;
+        byId('clearPointSettingInput').value = classInfo.clearPoint || 1000;
+        byId('stalledDaysInput').value = classInfo.stalledDays || 3;
+        byId('supportDaysInput').value = classInfo.supportDays || 2;
+
+        renderForestRecord({ forestState: { ...forestState, clearPoint: classInfo.clearPoint } });
+      },
+      onError: (err) => {
+        console.warn('[teacher] listenClass error:', err);
+      }
+    });
+
+    // (2) 児童一覧名簿ダッシュボード
+    firebaseClient.listenStudentsRoster({
+      classCode,
+      onData: (roster) => {
+        lastRoster = roster || [];
+        renderStudentRoster(lastRoster, { attentionOnly: byId('rosterFilterToggle').checked });
+      },
+      onError: (err) => {
+        console.warn('[teacher] listenStudentsRoster error:', err);
+      }
+    });
+
+    // (3) 児童名簿（名前解決用）
+    firebaseClient.listenStudents({
+      classCode,
+      onData: (students) => {
+        studentsMap = new Map((students || []).map(s => [s.studentId, s.nickname || 'だれか']));
+      },
+      onError: (err) => {
+        console.warn('[teacher] listenStudents error:', err);
+      }
+    });
+
+    // (4) 承認待ちキュー
+    firebaseClient.listenApprovalQueue({
+      classCode,
+      onData: (pending) => {
+        const list = Array.isArray(pending) ? pending : [];
+        byId('approvalList').innerHTML = list.length
+          ? list.map((entry) => {
+              const studentName = studentsMap.get(entry.studentId) || 'だれか';
+              return `
+                <div class="goal-card">
+                  <div class="goal-card__title">${escapeHtml(studentName)}さん: ${escapeHtml(entry.goalTitle || '')}</div>
+                  <div class="goal-card__meta">${escapeHtml(entry.date || '')} に達成報告</div>
+                  <div class="goal-card__actions">
+                    <button class="btn" data-approve="${escapeHtml(entry.logId)}">承認</button>
+                    <button class="btn btn--ghost" data-reject="${escapeHtml(entry.logId)}">却下</button>
+                  </div>
+                </div>
+              `;
+            }).join('')
+          : '<p class="muted">承認待ちの目標はありません。</p>';
+      },
+      onError: (err) => {
+        console.warn('[teacher] listenApprovalQueue error:', err);
+      }
+    });
+
+    // (5) 活動ログ
+    firebaseClient.listenActivityLog({
+      classCode,
+      onData: (logs) => {
+        const activity = Array.isArray(logs) ? logs.slice(-20).reverse() : [];
+        byId('activityList').innerHTML = activity.length
+          ? activity.map((a) => `<div class="log-item">${escapeHtml(a.message || a.type || '')}</div>`).join('')
+          : '<p class="muted">まだ記録がありません。</p>';
+      },
+      onError: (err) => {
+        console.warn('[teacher] listenActivityLog error:', err);
+      }
+    });
   }
 
-  function startAuto() {
-    stopAuto();
-    autoTimer = window.setInterval(refreshDashboard, 15000);
-  }
-
-  async function refreshDashboard() {
-    if (!info) return;
-    const res = await apiClient.syncState({ classCode: info.classCode });
-    if (!res.ok) {
-      showMessage(`読み込みに失敗しました: ${res.reason || 'unknown_error'}`);
-      return;
-    }
-    showMessage('');
-    const { classInfo, goalLogPending, activityLog, students, studentsRoster, forestState } = res.data;
-
-    byId('classCodeDisplay').textContent = classInfo.classCode;
-    byId('approvalModeSelect').value = classInfo.goalApprovalMode === 'teacher' ? 'teacher' : 'self';
-    byId('maxGoalsInput').value = classInfo.maxGoals || 3;
-    byId('clearPointSettingInput').value = classInfo.clearPoint || 1000;
-    byId('stalledDaysInput').value = classInfo.stalledDays || 3;
-    byId('supportDaysInput').value = classInfo.supportDays || 2;
-
-    renderForestRecord({ forestState: { ...forestState, clearPoint: classInfo.clearPoint } });
-    lastRoster = Array.isArray(studentsRoster) ? studentsRoster : [];
-    renderStudentRoster(lastRoster, { attentionOnly: byId('rosterFilterToggle').checked });
-
-    const nicknameOf = (studentId) => {
-      const found = (students || []).find((s) => s.studentId === studentId);
-      return found ? found.nickname : 'だれか';
-    };
-
-    const pending = Array.isArray(goalLogPending) ? goalLogPending : [];
-    byId('approvalList').innerHTML = pending.length
-      ? pending.map((entry) => `
-          <div class="goal-card">
-            <div class="goal-card__title">${escapeHtml(nicknameOf(entry.studentId))}さん: ${escapeHtml(entry.goalTitle || '')}</div>
-            <div class="goal-card__meta">${escapeHtml(entry.date)} に達成報告</div>
-            <div class="goal-card__actions">
-              <button class="btn" data-approve="${escapeHtml(entry.logId)}">承認</button>
-              <button class="btn btn--ghost" data-reject="${escapeHtml(entry.logId)}">却下</button>
-            </div>
-          </div>
-        `).join('')
-      : '<p class="muted">承認待ちの目標はありません。</p>';
-
-    const activity = Array.isArray(activityLog) ? activityLog.slice(-20).reverse() : [];
-    byId('activityList').innerHTML = activity.length
-      ? activity.map((a) => `<div class="log-item">${escapeHtml(a.message || a.type || '')}</div>`).join('')
-      : '<p class="muted">まだ記録がありません。</p>';
-  }
-
+  // クラス作成
   byId('btnCreateClass').addEventListener('click', async () => {
     const teacherName = byId('teacherNameInput').value.trim();
     const clearPoint = Number(byId('clearPointInput').value) || 1000;
     const generatedClassCode = 'c_' + Math.random().toString(36).slice(2, 6).toUpperCase();
 
-    if (firebaseClient.isReady()) {
-      await firebaseClient.createClass({ classCode: generatedClassCode, teacherName, clearPoint });
+    if (!firebaseClient.isReady()) {
+      showMessage('Firebaseに接続できません。firebase-config.jsを確認してください。');
+      return;
     }
 
-    if (CONFIG.gasBaseUrl) {
-      apiClient.createClass({ teacherName, clearPoint }).catch(() => {});
-    }
+    await firebaseClient.createClass({
+      classCode: generatedClassCode,
+      teacherName,
+      clearPoint,
+      mapId: 'kokotsu_forest_01',
+      maxGoals: 3,
+      goalApprovalMode: 'self'
+    });
 
     info = { classCode: generatedClassCode };
     saveInfo(info);
     setView(true);
-    await refreshDashboard();
-    startAuto();
+    startRealtimeListeners(generatedClassCode);
   });
 
+  // 既存クラス管理
   byId('btnManageClass').addEventListener('click', async () => {
     const classCode = byId('joinCodeInput').value.trim();
-    if (!classCode) { showMessage('クラスコードを入力してください。'); return; }
-
-    let exists = false;
-    if (firebaseClient.isReady()) {
-      const fbCheck = await firebaseClient.getClass({ classCode });
-      if (fbCheck.ok) exists = true;
+    if (!classCode) {
+      showMessage('クラスコードを入力してください。');
+      return;
     }
 
-    if (!exists && CONFIG.gasBaseUrl) {
-      const res = await apiClient.syncState({ classCode });
-      if (res.ok) exists = true;
+    if (!firebaseClient.isReady()) {
+      showMessage('Firebaseに接続できません。');
+      return;
     }
 
-    if (!exists && !firebaseClient.isReady()) {
+    const check = await firebaseClient.getClass({ classCode });
+    if (!check.ok) {
       showMessage('クラスが見つかりませんでした。クラスコードを確認してください。');
       return;
     }
@@ -310,103 +335,85 @@ async function main() {
     info = { classCode };
     saveInfo(info);
     setView(true);
-    await refreshDashboard();
-    startAuto();
+    startRealtimeListeners(classCode);
   });
 
+  // 切断
   byId('btnDisconnect').addEventListener('click', () => {
-    stopAuto();
+    firebaseClient.cleanup();
     info = null;
     clearInfo();
     setView(false);
   });
 
-  byId('btnRefresh').addEventListener('click', refreshDashboard);
-
-  byId('forestNow').addEventListener('click', async (event) => {
-    if (!event.target.closest?.('#btnReleaseNextForest')) return;
-    if (!info) return;
-    if (firebaseClient.isReady()) {
-      await firebaseClient.updateForestState({
-        classCode: info.classCode,
-        forestState: { nextForestUnlocked: true }
-      });
+  // 更新ボタン
+  byId('btnRefresh').addEventListener('click', () => {
+    if (info?.classCode) {
+      startRealtimeListeners(info.classCode);
     }
-    if (CONFIG.gasBaseUrl) {
-      apiClient.releaseNextForest({ classCode: info.classCode }).catch(() => {});
-    }
-    showMessage('');
-    refreshDashboard();
   });
 
+  // 次の森の解放
+  byId('forestNow').addEventListener('click', async (event) => {
+    if (!event.target.closest?.('#btnReleaseNextForest')) return;
+    if (!info?.classCode) return;
+    await firebaseClient.releaseNextForest({ classCode: info.classCode });
+    showMessage('次の森を解放しました✨');
+    setTimeout(() => showMessage(''), 3000);
+  });
+
+  // 気になる子フィルター
   byId('rosterFilterToggle').addEventListener('change', (event) => {
     renderStudentRoster(lastRoster, { attentionOnly: event.target.checked });
   });
 
+  // 設定保存
   byId('btnSaveSettings').addEventListener('click', async () => {
-    if (!info) return;
+    if (!info?.classCode) return;
     const approvalMode = byId('approvalModeSelect').value;
     const maxGoals = Number(byId('maxGoalsInput').value) || 3;
     const clearPoint = Number(byId('clearPointSettingInput').value) || 1000;
     const stalledDays = Number(byId('stalledDaysInput').value) || 3;
     const supportDays = Number(byId('supportDaysInput').value) || 2;
 
-    if (firebaseClient.isReady()) {
-      await firebaseClient.updateClassSettings({
+    await firebaseClient.updateClassSettings({
+      classCode: info.classCode,
+      settings: {
         classCode: info.classCode,
-        settings: {
-          classCode: info.classCode,
-          goalApprovalMode: approvalMode,
-          maxGoals,
-          clearPoint,
-          stalledDays,
-          supportDays
-        }
-      });
-    }
-
-    if (CONFIG.gasBaseUrl) {
-      apiClient.setGoalSettings({ classCode: info.classCode, maxGoals, approvalMode }).catch(() => {});
-      apiClient.setClearPoint({ classCode: info.classCode, clearPoint }).catch(() => {});
-      apiClient.setRosterThresholds({ classCode: info.classCode, stalledDays, supportDays }).catch(() => {});
-    }
+        goalApprovalMode: approvalMode,
+        maxGoals,
+        clearPoint,
+        stalledDays,
+        supportDays
+      }
+    });
 
     showMessage('設定を保存しました✨');
     setTimeout(() => showMessage(''), 3000);
-    refreshDashboard();
   });
 
-  const firebaseClient = new FirebaseClient();
-
+  // 目標の承認 / 却下
   byId('approvalList').addEventListener('click', async (event) => {
     const approveBtn = event.target.closest?.('[data-approve]');
-    if (approveBtn) {
+    if (approveBtn && info?.classCode) {
       const logId = approveBtn.dataset.approve;
-      await apiClient.approveGoal({ classCode: info.classCode, logId });
-      if (firebaseClient.isReady()) {
-        await firebaseClient.resolveGoalApproval({ classCode: info.classCode, logId, approve: true });
-      }
-      refreshDashboard();
+      await firebaseClient.resolveGoalApproval({ classCode: info.classCode, logId, approve: true });
       return;
     }
     const rejectBtn = event.target.closest?.('[data-reject]');
-    if (rejectBtn) {
+    if (rejectBtn && info?.classCode) {
       const logId = rejectBtn.dataset.reject;
-      await apiClient.rejectGoal({ classCode: info.classCode, logId });
-      if (firebaseClient.isReady()) {
-        await firebaseClient.resolveGoalApproval({ classCode: info.classCode, logId, approve: false });
-      }
-      refreshDashboard();
+      await firebaseClient.resolveGoalApproval({ classCode: info.classCode, logId, approve: false });
     }
   });
 
-  if (info) {
+  if (info?.classCode) {
     setView(true);
-    await refreshDashboard();
-    startAuto();
+    startRealtimeListeners(info.classCode);
   } else {
     setView(false);
   }
 }
 
 main();
+

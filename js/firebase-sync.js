@@ -3,13 +3,7 @@
  *
  * FirebaseClient(firebase-client.js)とForestCore(core-runtime.js)を
  * リアルタイムにバインドする同期モジュール。
- *
- * 従来のClassSync(class-sync.js)がGAS通信を担っていたのと同じ役割を、
- * Firestoreの onSnapshot リアルタイムリスナーで実現する。
- *
- * GASとの役割分担:
- *   - GAS (スプレッドシート): 先生が管理する名簿・クラス設定（確認・編集が容易）
- *   - Firebase (Firestore): ゲームのリアルタイム体験（配置、目標、ありがとう、森の進行）
+ * GASを一切使わず、Firestoreのリアルタイムリスナーと直接操作で完全に同期します。
  */
 
 const LOCAL_CLASS_INFO_KEY = 'kokotsu_class_info_v2';
@@ -27,6 +21,7 @@ export class FirebaseSync {
     this.listening = false;
     // 配置直後でまだFirestoreに反映されていないplacedIdを一時的に保持
     this.pendingPlacements = new Set();
+    this.knownGoalLogStatus = new Map();
   }
 
   // ---- ローカル接続情報管理 ----
@@ -75,21 +70,25 @@ export class FirebaseSync {
 
   async joinClass({ classCode, studentId, nickname }) {
     if (!this.fb?.isReady()) return { ok: false, reason: 'firebase_not_ready' };
-    const sid = studentId || 'std_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-    this.saveLocalInfo({ classCode, studentId: sid, nickname });
-    
+    const sid = studentId || this.info?.studentId || ('std_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7));
+    const nick = nickname || this.info?.nickname || 'わたし';
+    this.saveLocalInfo({ classCode, studentId: sid, nickname: nick });
+
     // 名簿に自分を登録
     await this.fb.setStudent({
       classCode,
       studentId: sid,
       data: {
-        nickname: nickname || 'わたし',
+        nickname: nick,
         joinedAt: new Date().toISOString()
       }
     });
 
+    // ログイン来訪日数の記録
+    await this.fb.touchStudentLogin(classCode, sid);
+
     this.startListening();
-    return { ok: true, data: { classCode, studentId: sid, nickname } };
+    return { ok: true, data: { classCode, studentId: sid, nickname: nick } };
   }
 
   // ---- リアルタイムリスナー開始 ----
@@ -100,6 +99,9 @@ export class FirebaseSync {
 
     const classCode = this.info.classCode;
     const studentId = this.info.studentId;
+
+    // 起動時のログイン記録
+    this.fb.touchStudentLogin(classCode, studentId);
 
     // (1) 森の配置アイテム (PlacedAssets) - リアルタイムリスニング
     this.fb.listenPlacedAssets({
@@ -131,19 +133,52 @@ export class FirebaseSync {
     this.fb.listenClass({
       classCode,
       onData: (data) => {
+        const state = this.core.getState();
         if (data?.classInfo) {
           this.core.setClassInfo(data.classInfo);
+          if (data.classInfo.goalApprovalMode) {
+            state.goalSettings = state.goalSettings || {};
+            state.goalSettings.approvalMode = data.classInfo.goalApprovalMode;
+          }
+          if (data.classInfo.maxGoals) {
+            state.goalSettings = state.goalSettings || {};
+            state.goalSettings.maxGoals = Number(data.classInfo.maxGoals) || 3;
+          }
         }
         if (data?.forestState) {
           const fs = data.forestState;
-          if (fs.classPoints !== undefined) this.core.setClassPoints(fs.classPoints);
-          if (fs.completedEvents) this.core.setCompletedEvents(fs.completedEvents);
-          if (fs.forestGeneration !== undefined) this.core.setForestGeneration(fs.forestGeneration);
-          if (fs.forestStatus) this.core.setForestStatus(fs.forestStatus);
-          if (fs.nextForestUnlocked !== undefined) {
-            this.core.state.nextForestUnlocked = Boolean(fs.nextForestUnlocked);
+          const serverGen = Number(fs.forestGeneration) || 1;
+          const localGen = Number(state.forestGeneration) || 1;
+
+          if (serverGen > localGen) {
+            // 他端末が次の森を始めた場合、世代を同期
+            state.forestGeneration = serverGen;
+            state.classPoints = Number(fs.classPoints) || 0;
+            state.completedEvents = Array.isArray(fs.completedEvents) ? fs.completedEvents : [];
+            state.badges = Array.isArray(fs.badges) ? fs.badges : [];
+            state.unlockedCategories = fs.unlockedCategories || {};
+            state.animals = Array.isArray(fs.animals) ? fs.animals : [];
+            if (this.core.animals) this.core.animals.hydrate(state.animals);
+            state.forestStatus = fs.forestStatus || 'growing';
+            state.forestStartedAt = fs.forestStartedAt || new Date().toISOString();
+            state.forestCompletedAt = fs.forestCompletedAt || null;
+            state.progressPercent = 0;
+            state.pendingMilestoneSummary = null;
+            state.nextForestUnlocked = Boolean(fs.nextForestUnlocked);
+          } else {
+            if (fs.classPoints !== undefined) this.core.setClassPoints(fs.classPoints);
+            if (fs.completedEvents) this.core.setCompletedEvents(fs.completedEvents);
+            if (fs.forestGeneration !== undefined) this.core.setForestGeneration(fs.forestGeneration);
+            if (fs.forestStatus) this.core.setForestStatus(fs.forestStatus);
+            if (fs.nextForestUnlocked !== undefined) {
+              this.core.state.nextForestUnlocked = Boolean(fs.nextForestUnlocked);
+            }
+          }
+          if (Array.isArray(fs.forestHistory)) {
+            state.forestHistory = fs.forestHistory;
           }
         }
+        this.core.syncMilestones();
         this.onSync(this.core.getState());
       },
       onError: (err) => {
@@ -156,7 +191,6 @@ export class FirebaseSync {
       classCode,
       onData: (students) => {
         const myNickname = this.info?.nickname;
-        const myStudentId = this.info?.studentId;
         const classmates = students
           .map((s) => s.nickname)
           .filter((name) => name && name !== myNickname);
@@ -165,6 +199,12 @@ export class FirebaseSync {
         );
         this.core.setClassmates(classmates);
         this.core.setStudentDirectory(directory);
+
+        // 自分の最新ポイント等があればマージ
+        const me = students.find(s => s.studentId === studentId);
+        if (me && me.personalPoints !== undefined) {
+          this.core.state.personalPoints = Number(me.personalPoints) || 0;
+        }
         this.onSync(this.core.getState());
       },
       onError: (err) => {
@@ -179,10 +219,23 @@ export class FirebaseSync {
         const now = Date.now();
         const recentForMe = list.filter(t => {
           const age = now - new Date(t.createdAt).getTime();
-          return t.toName === this.info.nickname && age < 30 * 1000;
+          return t.toName === this.info?.nickname && age < 30 * 1000;
         });
         if (recentForMe.length > 0) {
-          this.onThanksReceived(recentForMe[0]);
+          const t = recentForMe[0];
+          this.onThanksReceived(t);
+          const state = this.core.getState();
+          state.notifications = Array.isArray(state.notifications) ? state.notifications : [];
+          if (!state.notifications.some(n => n.id === `notif_${t.thanksId}`)) {
+            state.notifications.push({
+              id: `notif_${t.thanksId}`,
+              type: 'thanks_received',
+              message: `${t.fromLabel}さんから「ありがとう」が届きました！`,
+              createdAt: t.createdAt,
+              read: false
+            });
+            this.onSync(state);
+          }
         }
       },
       onError: (err) => {
@@ -190,18 +243,7 @@ export class FirebaseSync {
       }
     });
 
-    // (5) 目標承認キュー（先生承認モード時）
-    this.fb.listenApprovalQueue({
-      classCode,
-      onData: (queue) => {
-        // 先生画面等で利用
-      },
-      onError: (err) => {
-        console.warn('[FirebaseSync] ApprovalQueue listener error:', err);
-      }
-    });
-
-    // (6) アクティビティログ
+    // (5) アクティビティログ
     this.fb.listenActivityLog({
       classCode,
       onData: (logs) => {
@@ -266,7 +308,7 @@ export class FirebaseSync {
     this.onSync(this.core.getState());
   }
 
-  async pushRemovePlacedAsset({ placedId }) {
+  async pushRemovePlacedAsset(placedId) {
     if (!this.isConfigured() || !placedId) return;
     try {
       await this.fb.deletePlacedAsset({
@@ -281,24 +323,31 @@ export class FirebaseSync {
   async pushBuyItem({ itemId, assetId, itemName, price }) {
     if (!this.isConfigured()) return;
     try {
-      await this.fb.addActivityLog({
+      await this.fb.buyItem({
         classCode: this.info.classCode,
-        type: 'purchase',
-        message: `🛍️ ${this.info.nickname}さんが「${itemName || assetId}」を手に入れました`,
-        actorName: this.info.nickname
+        studentId: this.info.studentId,
+        itemId,
+        assetId,
+        itemName,
+        price
       });
     } catch (err) {
       console.warn('[FirebaseSync] pushBuyItem failed:', err);
     }
   }
 
-  async pushCreateGoal({ goal }) {
-    if (!this.isConfigured() || !goal) return;
+  async pushCreateGoal({ goal, title, targetCount }) {
+    if (!this.isConfigured()) return;
+    const g = goal || {
+      id: 'g_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      title: title || '',
+      targetCount: Number(targetCount) || 1
+    };
     try {
       await this.fb.createGoal({
         classCode: this.info.classCode,
         studentId: this.info.studentId,
-        goal
+        goal: g
       });
     } catch (err) {
       console.warn('[FirebaseSync] pushCreateGoal failed:', err);
@@ -326,6 +375,9 @@ export class FirebaseSync {
         forestState: {
           classPoints: state.classPoints || 0,
           completedEvents: state.completedEvents || [],
+          unlockedCategories: state.unlockedCategories || {},
+          badges: state.badges || [],
+          animals: state.animals || [],
           forestGeneration: state.forestGeneration || 1,
           forestStatus: state.forestStatus || 'growing',
           forestStartedAt: state.forestStartedAt || new Date().toISOString(),
@@ -339,18 +391,13 @@ export class FirebaseSync {
   }
 
   async pushStartNewForest() {
-    if (!this.isConfigured()) return;
-    const state = this.core.getState();
+    if (!this.isConfigured()) return { ok: false, reason: 'not_configured' };
     try {
-      await this.pushForestState();
-      await this.fb.addActivityLog({
-        classCode: this.info.classCode,
-        type: 'new_forest',
-        message: `🌱 ${state.forestGeneration || 1}代目の森がはじまりました`,
-        actorName: this.info.nickname
-      });
+      const res = await this.fb.startNewForest({ classCode: this.info.classCode });
+      return res;
     } catch (err) {
       console.warn('[FirebaseSync] pushStartNewForest failed:', err);
+      return { ok: false };
     }
   }
 
@@ -393,13 +440,13 @@ export class FirebaseSync {
     }
   }
 
-  async pushThanks({ toName, message = '' }) {
+  async pushThanks({ toName, fromLabel, message = '' }) {
     if (!this.isConfigured()) return;
     try {
       await this.fb.addThanks({
         classCode: this.info.classCode,
         fromStudentId: this.info.studentId,
-        fromLabel: this.info.nickname,
+        fromLabel: fromLabel || this.info.nickname,
         toName,
         message
       });
@@ -424,17 +471,6 @@ export class FirebaseSync {
         goalTitle,
         autoApprove
       });
-      if (autoApprove) {
-        // 森のクラスポイントも加算して更新
-        await this.pushForestState();
-        await this.fb.addActivityLog({
-          classCode: this.info.classCode,
-          type: 'goal',
-          message: `✅ ${this.info.nickname}さんが「${goalTitle}」を達成しました（+20pt）`,
-          actorName: this.info.nickname,
-          points: 20
-        });
-      }
       return result;
     } catch (err) {
       console.warn('[FirebaseSync] submitGoalCompletion failed:', err);

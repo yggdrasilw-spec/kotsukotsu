@@ -8,8 +8,6 @@ import { loadForestBundle } from './data-loader.js';
 import { BadgeManager } from './badge.js';
 import { AudioManager } from './audio.js';
 import { getSeasonLabel } from './season.js';
-import { ApiClient } from './api-client.js';
-import { ClassSync } from './class-sync.js';
 import { FirebaseClient } from './firebase-client.js';
 import { FirebaseSync } from './firebase-sync.js';
 
@@ -169,12 +167,6 @@ async function bootstrap() {
   core.setBadges(badges);
   core.setShopItems(shopItems);
 
-  const apiClient = new ApiClient();
-  const classSync = new ClassSync({
-    apiClient, core, onSync: () => refresh(),
-    onPlaceFailed: () => toast('うまく置けなかったみたい。もう一度おいてみてね')
-  });
-
   const firebaseClient = new FirebaseClient();
   const firebaseSync = new FirebaseSync({
     firebaseClient,
@@ -204,7 +196,7 @@ async function bootstrap() {
   }
 
   // 「だれが置いたか」の記録用。クラス未接続ならローカルの「わたし」のまま。
-  core.setIdentity({ studentId: classSync.info?.studentId || null, nickname: classSync.info?.nickname || 'わたし' });
+  core.setIdentity({ studentId: firebaseSync.info?.studentId || null, nickname: firebaseSync.info?.nickname || 'わたし' });
 
   const badgeManager = new BadgeManager(badges);
   const audio = new AudioManager();
@@ -458,7 +450,7 @@ async function bootstrap() {
     updateThanksOptions(state.classmates || []);
 
     // エンディング演出が表示中に先生が「次の森を解放する」を押した場合にも、
-    // 20秒周期の同期(classSync)からrefresh()経由でボタンの表示が追いつくようにする。
+    // リアルタイム同期からrefresh()経由でボタンの表示が追いつくようにする。
     const endingHost = byId('endingHost');
     if (endingHost && endingHost.style.display !== 'none') updateEndingReleaseState();
   }
@@ -469,7 +461,7 @@ async function bootstrap() {
   function updateThanksOptions(classmates) {
     const form = byId('thanksForm');
     const lockedMessage = byId('thanksLockedMessage');
-    const isConnected = classSync.isConfigured();
+    const isConnected = firebaseSync.isConfigured();
     if (form) form.style.display = isConnected ? '' : 'none';
     if (lockedMessage) lockedMessage.style.display = isConnected ? 'none' : '';
     if (!isConnected) return;
@@ -1005,7 +997,7 @@ async function bootstrap() {
     if (Array.isArray(summary.autoPlaced) && summary.autoPlaced.length) {
       for (const placedItem of summary.autoPlaced) {
         spawnNames.push(assets.find((a) => a.id === placedItem.assetId)?.name || placedItem.assetId);
-        classSync.pushPlaceAsset({
+        firebaseSync.pushPlaceAsset({
           placedId: placedItem.placedId,
           assetId: placedItem.assetId, spotId: placedItem.spotId, x: placedItem.x, y: placedItem.y,
           goalId: null, goalTitle: null
@@ -1021,8 +1013,7 @@ async function bootstrap() {
 
     if (summary.forestCompleted) {
       pendingForestCompletion = summary.forestCompleted;
-      // 20秒周期のpull()を待たず、完成した瞬間にクラス全体へ伝える。
-      classSync.pushForestCompleted();
+      firebaseSync.pushForestCompleted();
     }
 
     if ((milestoneQueue.length || pendingForestCompletion) && !milestoneBusy) {
@@ -1087,11 +1078,6 @@ async function bootstrap() {
     onPlace: (placed) => {
       if (!placed) return;
       audio.playPlace();
-      classSync.pushPlaceAsset({
-        placedId: placed.placedId,
-        assetId: placed.assetId, spotId: placed.spotId, x: placed.x, y: placed.y,
-        goalId: placed.goalId, goalTitle: placed.goalTitle
-      });
       firebaseSync.pushPlaceAsset({
         placedId: placed.placedId,
         assetId: placed.assetId, spotId: placed.spotId, x: placed.x, y: placed.y,
@@ -1200,7 +1186,7 @@ async function bootstrap() {
 
   function updateClassSyncStatus() {
     const bar = byId('classConnectBar');
-    const isConnected = firebaseSync.isConfigured() || classSync.isConfigured();
+    const isConnected = firebaseSync.isConfigured();
     if (bar) bar.style.display = isConnected ? 'none' : 'flex';
   }
 
@@ -1269,34 +1255,19 @@ async function bootstrap() {
     const nickname = (byId('classNicknameInput')?.value || '').trim();
     if (!classCode || !nickname) return;
 
-    let connected = false;
-    let studentId = null;
-
-    // (1) Firebase Firestore に接続
-    if (firebaseClient.isReady()) {
-      const fbRes = await firebaseSync.joinClass({ classCode, nickname });
-      if (fbRes.ok) {
-        connected = true;
-        studentId = fbRes.data.studentId;
-      }
+    if (!firebaseClient.isReady()) {
+      toast('Firebaseに接続できません。設定を確認してください');
+      return;
     }
 
-    // (2) GAS にも接続（設定されている場合）
-    if (CONFIG.gasBaseUrl) {
-      classSync.joinExistingClass({ baseUrl: CONFIG.gasBaseUrl, classCode, nickname }).then((result) => {
-        if (result.ok) {
-          classSync.startAutoSync();
-        }
-      });
-    }
-
-    if (connected || classSync.isConfigured()) {
+    const fbRes = await firebaseSync.joinClass({ classCode, nickname });
+    if (fbRes.ok) {
       toast(`クラスに入りました（${classCode}）`);
-      core.setIdentity({ studentId: studentId || classSync.info?.studentId, nickname });
+      core.setIdentity({ studentId: fbRes.data.studentId, nickname });
       updateClassSyncStatus();
       refresh();
     } else {
-      toast('入れませんでした。接続設定を確認してください');
+      toast('入れませんでした。クラスコードを確認してください');
     }
   });
 
@@ -1324,7 +1295,6 @@ async function bootstrap() {
           maybeShowSymbolTreeIntro();
           // クラス共有プレイなら、みんなでも同じ次代へ進めるようにサーバー側にも伝える。
           firebaseSync.pushStartNewForest();
-          classSync.pushStartNewForest();
         } else if (result.reason === 'waiting_for_teacher') {
           toast('先生が「次の森」を解放するまで、少し待ってね');
           updateEndingReleaseState();
@@ -1338,9 +1308,6 @@ async function bootstrap() {
   updateClassSyncStatus();
   if (firebaseSync.isConfigured()) {
     firebaseSync.startListening();
-  }
-  if (classSync.isConfigured()) {
-    classSync.startAutoSync();
   }
 
   bindButton('btnExport', () => {
@@ -1434,7 +1401,6 @@ async function bootstrap() {
         return;
       }
       firebaseSync.pushBuyItem({ itemId, assetId, itemName: itemCard.dataset.name, price });
-      classSync.pushBuyItem({ itemId, assetId, itemName: itemCard.dataset.name, price });
       if (core.getState().settings?.sfx) audio.beep(720, 0.05);
     }
 
@@ -1543,7 +1509,6 @@ async function bootstrap() {
             return;
           }
           firebaseSync.pushBuyItem({ itemId: item.id, assetId: item.assetId, itemName: item.name, price: item.price });
-          classSync.pushBuyItem({ itemId: item.id, assetId: item.assetId, itemName: item.name, price: item.price });
         }
 
         // 指定スクリーン座標で配置を実行
@@ -1578,7 +1543,6 @@ async function bootstrap() {
     }
     toast('目標をつくりました');
     firebaseSync.pushCreateGoal({ goal: result.goal });
-    classSync.pushCreateGoal({ title, targetCount: target });
     refresh();
   });
 
@@ -1601,7 +1565,6 @@ async function bootstrap() {
     if (nameSelect) nameSelect.value = '';
     toast(`${result.entry.toName}さんにありがとうを送りました`);
     firebaseSync.pushThanks({ toName: result.entry.toName, message: '' });
-    classSync.pushSendThanks({ toName: result.entry.toName, fromLabel: 'わたし' });
     refresh();
   });
 
@@ -1614,7 +1577,6 @@ async function bootstrap() {
         toast(result.reason === 'already_completed_today' ? 'きょうはもう達成しています' : 'できませんでした');
         return;
       }
-      classSync.pushCompleteGoal(goalId);
 
       if (result.needsApproval) {
         // 承認待ちは「まだ完了ではない」ので、達成演出は承認された時のために取っておく。
@@ -1648,7 +1610,6 @@ async function bootstrap() {
           toast(`「${title}」を追加しました！`);
           audio.tone(587.33, 0, 0.15, 0.08); // D5
           firebaseSync.pushCreateGoal({ goal: result.goal });
-          classSync.pushCreateGoal({ title, targetCount: 1 });
           refresh();
         } else {
           toast('これ以上目標は作れません');
@@ -1758,7 +1719,6 @@ async function bootstrap() {
       if (core.removeGoal(goalId)) {
         toast('目標をやめました');
         firebaseSync.pushRemoveGoal(goalId);
-        classSync.pushRemoveGoal(goalId);
       }
       refresh();
       return;
