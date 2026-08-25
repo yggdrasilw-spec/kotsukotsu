@@ -61,19 +61,18 @@ function setText(id, text) {
   if (el) el.textContent = text;
 }
 
-// 「クリア」ボタンの位置から、+ポイントと星をふわっと飛ばす。
-// ボタンはこのあとrefresh()で作り直されるので、要素ではなく座標だけ使う。
-function spawnCelebration(anchorEl, points) {
-  const rect = anchorEl?.getBoundingClientRect?.();
-  if (!rect) return;
-  const originX = rect.left + rect.width / 2;
-  const originY = rect.top + rect.height / 2;
+// 「クリア」ボタンの位置や指定座標から、+ポイントと星をふわっと飛ばす。
+function spawnCelebration(anchor, points) {
+  const rect = anchor?.getBoundingClientRect ? anchor.getBoundingClientRect() : anchor;
+  if (!rect || typeof rect.left !== 'number') return;
+  const originX = rect.left + (rect.width || 0) / 2;
+  const originY = rect.top + (rect.height || 0) / 2;
 
   const pieces = [];
   if (points) pieces.push({ text: `+${points}`, cls: 'celebrate-particle--points', dx: 0, delay: 0 });
-  const emojis = ['✨', '🌟', '🍃'];
+  const emojis = ['✨', '🌟', '💮', '🍃', '⭐'];
   emojis.forEach((emoji, i) => {
-    pieces.push({ text: emoji, cls: 'celebrate-particle--emoji', dx: (i - 1) * 26, delay: 40 + i * 40 });
+    pieces.push({ text: emoji, cls: 'celebrate-particle--emoji', dx: (i - 2) * 24, delay: 30 + i * 35 });
   });
 
   pieces.forEach(({ text, cls, dx, delay }) => {
@@ -425,6 +424,7 @@ async function bootstrap() {
     if (pendingStatPulse) {
       pendingStatPulse = false;
       pulse('personalValue');
+      pulse('drawerPersonalValue');
       pulse('progressPercentValue');
     }
     const seasonOverlay = byId('seasonOverlay');
@@ -1586,17 +1586,46 @@ async function bootstrap() {
         return;
       }
 
-      // 達成の瞬間が一番気持ちいいべきなので、テキストのトーストだけでなく
-      // カードのポップ・パーティクル・上昇アルペジオを重ねる。
-      toast(`達成！ +${result.pointsAwarded}ポイント`);
+      // 承認不要（即時達成）の場合:
+      // ボタン座標を保持
+      const btnRect = completeBtn.getBoundingClientRect();
       audio.chime();
       firebaseSync.pushGoalCompletion({ goalId, goalTitle: core.getGoal(goalId)?.title || '', autoApprove: true });
-      const card = completeBtn.closest('.goal-card');
-      card?.classList.add('goal-card--celebrate');
-      spawnCelebration(completeBtn, result.pointsAwarded);
+
+      // 即座にUIを再描画（ゼロ遅延で丸が●に変わり、ヘッダー・ドロワーのポイントと進捗リングが即時更新）
       pendingStatPulse = true;
-      // カードが一瞬"できた!"の表情を見せてから、通常の再描画(達成済み表示)に切り替える。
-      window.setTimeout(refresh, 420);
+      refresh();
+
+      // 再描画されたカードにポップアニメーションを付与
+      const targetCard = document.querySelector(`[data-goal-card-id="${goalId}"]`);
+      if (targetCard) {
+        targetCard.classList.add('goal-card--celebrate');
+      }
+
+      // パーティクル演出
+      spawnCelebration(btnRect, result.pointsAwarded);
+
+      // 全目標達成（今日の目標コンプリート）チェック
+      const currentGoals = core.getState()?.goalsView || [];
+      const totalTarget = currentGoals.reduce((sum, g) => sum + (Number(g.targetCount) || 1), 0);
+      const totalDone = currentGoals.reduce((sum, g) => sum + (Number(g.done) || 0), 0);
+      const isAllComplete = totalTarget > 0 && totalDone >= totalTarget;
+
+      if (isAllComplete) {
+        // 全目標達成の特別ファンファーレ & 祝福トースト
+        window.setTimeout(() => {
+          audio.fanfare();
+          toast('🎉 今日の目標ぜんぶ達成！たいへんよくできました💮', 'toast--complete-all');
+          spawnCelebration({
+            left: window.innerWidth / 2,
+            top: window.innerHeight / 3,
+            width: 0,
+            height: 0
+          }, 0);
+        }, 320);
+      } else {
+        toast(`達成！ +${result.pointsAwarded}ポイント`);
+      }
       return;
     }
 

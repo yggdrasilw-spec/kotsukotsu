@@ -495,20 +495,24 @@ export function createForestRenderer({
   // 目標パネル: 一覧＋クリアボタン＋新規作成フォーム。
   // 目標カード1つぶんの「できた/待ち/あと」を、数字だけでなく丸の並びで見せる。
   // 低学年でも一瞬で「あと何回か」が分かるようにするための視覚化(文字は補助情報として残す)。
+  // 目標パネル: 一覧＋クリアボタン＋新規作成フォーム。
+  // 目標カード1つぶんの「できた/待ち/あと」を、スタイリッシュなドットバッジで見せる。
   function renderGoalDots(g) {
     const total = Math.max(1, Number(g.targetCount) || 1);
     let dots = '';
     for (let i = 0; i < total; i++) {
-      if (i < g.done) dots += '<span class="goal-dot goal-dot--done">●</span>';
-      else if (i < g.done + g.pending) dots += '<span class="goal-dot goal-dot--pending">◐</span>';
-      else dots += '<span class="goal-dot goal-dot--empty">○</span>';
+      if (i < g.done) {
+        dots += '<span class="goal-dot goal-dot--done" title="できた！"><span class="goal-dot__inner">✓</span></span>';
+      } else if (i < g.done + g.pending) {
+        dots += '<span class="goal-dot goal-dot--pending" title="承認待ち"><span class="goal-dot__inner">⏳</span></span>';
+      } else {
+        dots += '<span class="goal-dot goal-dot--empty" title="あと少し！"><span class="goal-dot__inner"></span></span>';
+      }
     }
-    return `<div class="goal-dots">${dots}</div>`;
+    return `<div class="goal-dots" aria-label="進捗: ${g.done}/${total}">${dots}</div>`;
   }
 
   // 目標が複数あっても「今、全体でどれだけ進んでいるか」を1枚で見せるための小さなヘッダー。
-  // 個々の目標カードより上に表示し、パーセントより「あと何個」を主役にする
-  // (小さい子には割合よりも実際に残っている数のほうが分かりやすいため)。
   function renderGoalTodayHero(goals) {
     if (!goals.length) return '';
     const totalDone = goals.reduce((sum, g) => sum + g.done, 0);
@@ -516,9 +520,10 @@ export function createForestRenderer({
     const totalTarget = goals.reduce((sum, g) => sum + g.targetCount, 0);
     const remaining = Math.max(0, totalTarget - totalDone - totalPending);
     const pct = totalTarget ? Math.round((totalDone / totalTarget) * 100) : 0;
+    const isAllDone = totalTarget > 0 && totalDone >= totalTarget;
 
     let sub;
-    if (totalTarget > 0 && totalDone >= totalTarget) {
+    if (isAllDone) {
       sub = `<span class="goal-today-hero__sub goal-today-hero__sub--done">今日は${rb('全部', 'ぜんぶ')}できたよ！🎉</span>`;
     } else if (remaining === 1) {
       sub = `<span class="goal-today-hero__sub goal-today-hero__sub--last">あと<strong>1</strong>つ！</span>`;
@@ -530,7 +535,7 @@ export function createForestRenderer({
       : '';
 
     return `
-      <div class="goal-today-hero">
+      <div class="goal-today-hero${isAllDone ? ' goal-today-hero--all-done' : ''}">
         <div class="goal-today-hero__ring" style="--pct: ${pct}%;">
           <span class="goal-today-hero__pct">${totalDone}/${totalTarget}</span>
         </div>
@@ -554,24 +559,35 @@ export function createForestRenderer({
     const rows = goals.length
       ? goals.map((g) => {
           const full = g.done + g.pending >= g.targetCount;
-          const label = g.pending > 0 ? `${rb('承認', 'しょうにん')}待ち…` : full ? `きょうは${rb('達成', 'たっせい')}！` : 'クリア';
-          // 「やめる」は取り消せない操作なので、1タップ目では消さずに
-          // 「本当に消す？」の確認状態に切り替え、2タップ目で初めて削除する。
-          // 誤タップでも「やめない」であっさり戻れるようにする。
+          const isDone = g.done >= g.targetCount;
+          let btnContent = '<span class="btn-goal-icon">✨</span> できた！';
+          let btnClass = 'btn btn--goal-action';
+          if (g.pending > 0 && !isDone) {
+            btnContent = `<span class="btn-goal-icon">⏳</span> ${rb('承認', 'しょうにん')}待ち…`;
+            btnClass += ' btn--pending';
+          } else if (isDone) {
+            btnContent = `<span class="btn-goal-icon">💮</span> きょうは${rb('達成', 'たっせい')}！`;
+            btnClass += ' btn--done';
+          }
+
           const removeActions = confirmRemoveGoalId === g.id
             ? `
               <button class="btn btn--danger btn--small" data-goal-remove-confirm="${escapeHtml(g.id)}">${rb('本当', 'ほんとう')}に${rb('消', 'け')}す</button>
               <button class="btn btn--ghost btn--small" data-goal-remove-cancel="${escapeHtml(g.id)}">やめない</button>
             `
-            : `<button class="btn btn--ghost" data-goal-remove="${escapeHtml(g.id)}">やめる</button>`;
+            : `<button class="btn btn--ghost btn--small goal-card__remove-btn" data-goal-remove="${escapeHtml(g.id)}" title="この目標をやめる">やめる</button>`;
           return `
-            <div class="goal-card${full ? ' goal-card--full' : ''}">
-              <div class="goal-card__title">${escapeHtml(g.title)}</div>
-              ${renderGoalDots(g)}
-              <div class="goal-card__meta">きょう ${g.done}/${g.targetCount}${g.pending ? `（${rb('承認', 'しょうにん')}待ち ${g.pending}）` : ''}</div>
-              <div class="goal-card__actions${confirmRemoveGoalId === g.id ? ' goal-card__actions--confirm' : ''}">
-                <button class="btn" data-goal-complete="${escapeHtml(g.id)}" ${full ? 'disabled' : ''}>${label}</button>
+            <div class="goal-card${full ? ' goal-card--full' : ''}" data-goal-card-id="${escapeHtml(g.id)}">
+              <div class="goal-card__header">
+                <div class="goal-card__title">${escapeHtml(g.title)}</div>
                 ${removeActions}
+              </div>
+              <div class="goal-card__body">
+                ${renderGoalDots(g)}
+                <div class="goal-card__meta">きょう ${g.done}/${g.targetCount}${g.pending ? `（${rb('承認', 'しょうにん')}待ち ${g.pending}）` : ''}</div>
+              </div>
+              <div class="goal-card__actions${confirmRemoveGoalId === g.id ? ' goal-card__actions--confirm' : ''}">
+                <button class="${btnClass}" data-goal-complete="${escapeHtml(g.id)}" ${full ? 'disabled' : ''}>${btnContent}</button>
               </div>
             </div>
           `;
