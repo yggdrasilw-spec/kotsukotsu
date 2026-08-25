@@ -12,8 +12,8 @@
       "type": "visual",
       "priority": 1,
       "applyOnce": true,
-      "message": "森にやわらかい草が広がりはじめた",
-      "effect": "fadeIn"
+      "message": "森にやわらかい若草が芽吹きはじめた",
+      "effect": "grow"
     },
     {
       "id": "event_10",
@@ -22,7 +22,7 @@
       "type": "visual",
       "priority": 1,
       "applyOnce": true,
-      "message": "花のスポットが使えるようになった",
+      "message": "花畑に色とりどりの花が咲きはじめた",
       "effect": "sparkle"
     },
     {
@@ -32,7 +32,7 @@
       "type": "visual",
       "priority": 1,
       "applyOnce": true,
-      "message": "森の骨格になる木が増えた",
+      "message": "森の木々がすくすくと育ち、木陰ができた",
       "effect": "grow"
     },
     {
@@ -42,8 +42,8 @@
       "type": "story",
       "priority": 1,
       "applyOnce": true,
-      "message": "葉のこすれる音や、小さな生き物の気配が感じられるようになった",
-      "effect": "sparkle"
+      "message": "葉のこすれる音や、小鳥たちの優しい気配が感じられるようになった",
+      "effect": "leaves"
     },
     {
       "id": "event_25",
@@ -52,8 +52,8 @@
       "type": "system",
       "priority": 1,
       "applyOnce": true,
-      "message": "森の中を歩ける道が見えてきた",
-      "effect": "fadeIn"
+      "message": "森の中を歩けるきれいな小道がつながった",
+      "effect": "sparkle"
     },
     {
       "id": "event_30",
@@ -62,7 +62,7 @@
       "type": "visual",
       "priority": 1,
       "applyOnce": true,
-      "message": "川や池の上に橋が現れた",
+      "message": "川や池の上に木の橋がかかった",
       "effect": "sparkle"
     },
     {
@@ -73,7 +73,7 @@
       "priority": 1,
       "applyOnce": true,
       "message": "苔むした岩や切り株が森のあちこちに増えてきた",
-      "effect": "fadeIn"
+      "effect": "bounce"
     },
     {
       "id": "event_40",
@@ -102,7 +102,7 @@
       "type": "visual",
       "priority": 1,
       "applyOnce": true,
-      "message": "森に水辺が生まれた",
+      "message": "森にきれいな池が生まれ、魚たちが跳ねている",
       "effect": "ripple"
     },
     {
@@ -112,7 +112,7 @@
       "type": "story",
       "priority": 1,
       "applyOnce": true,
-      "message": "池のまわりに小鳥の声がひびくようになった",
+      "message": "木々の枝に小鳥が集まり、美しい歌声がひびくようになった",
       "effect": "bounce"
     },
     {
@@ -122,7 +122,7 @@
       "type": "story",
       "priority": 1,
       "applyOnce": true,
-      "message": "森に小さな気配が増えてきた",
+      "message": "森に元気なリスが遊びに来て駆け回っている",
       "effect": "bounce"
     },
     {
@@ -132,7 +132,7 @@
       "type": "visual",
       "priority": 1,
       "applyOnce": true,
-      "message": "白い木や針葉樹が森の景色に加わった",
+      "message": "白い木や大きな針葉樹が森の景色に加わった",
       "effect": "grow"
     },
     {
@@ -162,7 +162,7 @@
       "type": "story",
       "priority": 1,
       "applyOnce": true,
-      "message": "特別な日には虹が見える",
+      "message": "澄みわたる森の空に、大きな虹がかかった",
       "effect": "rainbow"
     },
     {
@@ -173,7 +173,7 @@
       "priority": 1,
       "applyOnce": true,
       "message": "森じゅうの生き物たちが、にぎやかに過ごすようになった",
-      "effect": "ripple"
+      "effect": "sparkle"
     },
     {
       "id": "event_90",
@@ -182,8 +182,8 @@
       "type": "story",
       "priority": 1,
       "applyOnce": true,
-      "message": "木々のすきまから、いつもより特別な光が差し込んでいる",
-      "effect": "sparkle"
+      "message": "木々のすきまから、あたたかな奇跡の光が差し込んでいる",
+      "effect": "sunbeams"
     },
     {
       "id": "event_95",
@@ -192,8 +192,8 @@
       "type": "story",
       "priority": 1,
       "applyOnce": true,
-      "message": "森の完成まで、あと少しのところまで来た",
-      "effect": "fadeIn"
+      "message": "森の完成まであと少し！森じゅうが豊かな命であふれている",
+      "effect": "sparkle"
     },
     {
       "id": "event_100",
@@ -202,7 +202,7 @@
       "type": "story",
       "priority": 1,
       "applyOnce": true,
-      "message": "コツコツの森が完成した",
+      "message": "みんなの力で、大樹がそびえるコツコツの森が完成した！",
       "effect": "rainbow"
     }
   ]

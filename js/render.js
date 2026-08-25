@@ -161,10 +161,13 @@ export function createForestRenderer({
     }).join('');
   }
 
-  function renderTerrain(mapData) {
+  function renderTerrain(mapData, progressPercent = 0) {
     const terrain = Array.isArray(mapData?.terrain) ? mapData.terrain : [];
     return terrain.map((item) => {
       const asset = assetById.get(item.assetId) || null;
+      const unlockReq = Number(asset?.unlock || 0);
+      const isUnlocked = progressPercent >= unlockReq;
+
       const cellsWide = Number(item.width || asset?.gridWidth || 1);
       const cellsHigh = Number(item.height || asset?.gridHeight || 1);
       const width = cellsWide * camera.cellSize;
@@ -194,10 +197,13 @@ export function createForestRenderer({
         styleParts.push('background-repeat:no-repeat', 'background-size:contain');
       }
 
+      const unlockClass = isUnlocked ? 'is-unlocked' : 'is-locked';
+
       return `
-        <div class="forest-node forest-node--terrain forest-node--${escapeHtml(item.type || 'terrain')}"
+        <div class="forest-node forest-node--terrain forest-node--${escapeHtml(item.type || 'terrain')} ${unlockClass}"
              data-terrain-id="${escapeHtml(item.id)}"
              data-layer="${escapeHtml(item.layer || 'terrain')}"
+             data-unlock="${unlockReq}"
              title="${escapeHtml(label)}"
              style="${styleParts.join(';')}">
           <div class="forest-node__label">${escapeHtml(asset?.name || item.assetId || item.type || 'terrain')}</div>
@@ -753,26 +759,17 @@ export function createForestRenderer({
     return `${unlockedHtml}${lockedHtml}`;
   }
 
-  // 地形(terrain)は map.json 由来で実行中に変化しないため、初回だけ組み立てて
-  // キャッシュする。毎フレーム同じ巨大HTMLを作り直すムダを無くす。
-  let terrainHtmlCache = null;
-  function getTerrainHtml() {
-    if (terrainHtmlCache === null) terrainHtmlCache = renderTerrain(map);
-    return terrainHtmlCache;
-  }
-
-  // 地形(terrain)はセッション中まず変化しない(mapは起動時に1回読み込むだけ)のに、
-  // 以前は毎回のrender()でlayers.terrain.innerHTMLを丸ごと書き直していた。
-  // これだと配置/購入/20秒おきの同期など「地形とは無関係な理由」でrefresh()される
-  // たびに、地面や道の背景画像タイルを全部作り直す→再ペイントすることになり、
-  // 低スペック機(Chromebook等)では一瞬タイルが抜けた「モザイク状」の表示になっていた。
-  // 実際にterrainHtmlCacheの中身が変わった(=setAssets等でキャッシュがnullに戻された)
-  // ときだけDOMへ反映するようにする。
+  // 地形(terrain)は進行度(progressPercent)によるアンロックがあるため、
+  // 進行度のしきい値(25%, 30%, 50%)をまたいだ時だけ再構築する。
+  let terrainProgressSignature = null;
   let terrainDomSyncedHtml = null;
-  function applyTerrainIfChanged() {
+  function applyTerrainIfChanged(state) {
     if (!layers.terrain) return;
-    const html = getTerrainHtml();
-    if (html === terrainDomSyncedHtml) return;
+    const progressPercent = computeProgressPercent(state);
+    const signature = `${progressPercent >= 25 ? 1 : 0}:${progressPercent >= 30 ? 1 : 0}:${progressPercent >= 50 ? 1 : 0}`;
+    if (signature === terrainProgressSignature && terrainDomSyncedHtml !== null) return;
+    terrainProgressSignature = signature;
+    const html = renderTerrain(map, progressPercent);
     layers.terrain.innerHTML = html;
     terrainDomSyncedHtml = html;
   }
@@ -837,10 +834,16 @@ export function createForestRenderer({
   function render(state) {
     updateCamera();
 
+    const progressPercent = computeProgressPercent(state);
+    if (viewportEl) {
+      const stage = Math.min(4, Math.floor(progressPercent / 20));
+      viewportEl.dataset.forestStage = String(stage);
+    }
+
     const spotHtml = renderSpots(state);
     const gridHtml = renderGridOverlay();
 
-    applyTerrainIfChanged();
+    applyTerrainIfChanged(state);
     applyPlacedAssetsIfChanged(state);
     if (layers.debug) layers.debug.innerHTML = `${gridHtml}${spotHtml}`;
     renderAnimalsOnly(state);

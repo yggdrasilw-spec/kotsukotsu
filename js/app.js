@@ -946,9 +946,19 @@ async function bootstrap() {
     const card = showBanner({ ...item, contributorText: item.kind === 'event' ? contributorLabel(item.contributor) : null });
     if (item.effect) playEffect(item.effect);
     if (core.getState().settings?.sfx) {
-      audio.beep(item.kind === 'badge' ? 660 : 520, 0.06);
+      if (item.kind === 'badge') {
+        audio.fanfare();
+      } else if (item.effect === 'grow') {
+        audio.playGrow();
+      } else if (item.effect === 'sparkle' || item.effect === 'sunbeams') {
+        audio.playSparkle();
+      } else if (item.effect === 'rainbow') {
+        audio.playRainbow();
+      } else {
+        audio.chime();
+      }
     }
-    await wait(1900);
+    await wait(2200);
     hideBanner(card);
     await animateCamera({ x: prevX, y: prevY, zoom: prevZoom }, 500);
   }

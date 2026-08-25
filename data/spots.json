@@ -534,6 +534,185 @@
       "radius": 2,
       "stackable": true,
       "description": "演出用スポット2"
+    },
+    {
+      "id": "grassSpot001",
+      "type": "grass",
+      "area": "forestWest",
+      "x": 20,
+      "y": 15,
+      "priority": 1,
+      "allow": [
+        "leaf_01",
+        "flower_small_01"
+      ],
+      "maxCount": 8,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 2,
+      "stackable": true,
+      "description": "西の草むらスポット"
+    },
+    {
+      "id": "grassSpot002",
+      "type": "grass",
+      "area": "specialSpotArea",
+      "x": 48,
+      "y": 32,
+      "priority": 1,
+      "allow": [
+        "leaf_01",
+        "flower_small_01"
+      ],
+      "maxCount": 8,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 2,
+      "stackable": true,
+      "description": "中央南の草むらスポット"
+    },
+    {
+      "id": "flowerSpot003",
+      "type": "flower",
+      "area": "specialSpotArea",
+      "x": 56,
+      "y": 26,
+      "priority": 1,
+      "allow": [
+        "flower_small_01",
+        "flower_patch_01"
+      ],
+      "maxCount": 6,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 1,
+      "stackable": true,
+      "description": "シンボルツリー脇の花スポット"
+    },
+    {
+      "id": "treeSpot004",
+      "type": "tree",
+      "area": "forestWest",
+      "x": 28,
+      "y": 42,
+      "priority": 1,
+      "allow": [
+        "tree_oak_01",
+        "tree_birch_01",
+        "tree_pine_01"
+      ],
+      "maxCount": 1,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0,
+      "stackable": false,
+      "description": "南西の森の木スポット"
+    },
+    {
+      "id": "treeSpot005",
+      "type": "tree",
+      "area": "forestNorth",
+      "x": 68,
+      "y": 42,
+      "priority": 1,
+      "allow": [
+        "tree_oak_01",
+        "tree_birch_01",
+        "tree_pine_01"
+      ],
+      "maxCount": 1,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0,
+      "stackable": false,
+      "description": "南東の木スポット"
+    },
+    {
+      "id": "rockSpot003",
+      "type": "rock",
+      "area": "pondWest",
+      "x": 68,
+      "y": 34,
+      "priority": 1,
+      "allow": [
+        "rock_small_01",
+        "rock_medium_01",
+        "stump_01"
+      ],
+      "maxCount": 4,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 1,
+      "stackable": true,
+      "description": "池のほとりの岩スポット"
+    },
+    {
+      "id": "sparkleSpot003",
+      "type": "effect",
+      "area": "specialSpotArea",
+      "x": 50,
+      "y": 26,
+      "priority": 1,
+      "allow": [
+        "sparkle_small_01",
+        "glow_01",
+        "rainbow_01"
+      ],
+      "maxCount": 20,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 3,
+      "stackable": true,
+      "description": "シンボルツリー演出用スポット"
     }
   ]
 }

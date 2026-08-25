@@ -13,42 +13,40 @@ function clone(value) {
 }
 
 // events.json の演出テキストと、実際のゲーム内変化を紐付けるテーブル。
-// 例えば「50% 池が現れる」なら魚が、「60% リスがあらわれる」なら実際に
-// 小動物が自動的に出現するようにする(これまではテキストだけで見た目は変わらなかった)。
-// (v25) それまで「メッセージだけで見た目は何も変わらない」イベントが半分近くあった
-// (event_20/25/30/40/45/55/70/75/80/85/90/95等)ため、各イベントのメッセージ内容と
-// data/assets.jsonのunlockしきい値に合わせて、対応する生き物が実際に出現するよう
-// 一通り埋めた。bird/insectはspots.json側に元々枠(birdSpot, insectSpot)があったのに
-// どのイベントからも呼ばれておらず、ずっと空きスポットのままになっていた。
+// 5%刻み(5〜100%)の各イベントで、マップ上に実際に自然物・生き物が出現するように設定。
 const EVENT_AUTO_SPAWN = {
-  event_40: { type: 'insect', count: 3 },        // 虫たちが集まりだす(ハチ・チョウ / unlock40)
-  event_45: { type: 'insect', count: 2 },         // きのこが仲間を増やす(…とトンボ / unlock45)
-  event_50: { type: 'fish', count: 2 },           // 池が現れる
+  event_20: { type: 'bird', count: 1 },           // 森の音が聞こえる(小鳥のさえずり)
+  event_40: { type: 'insect', count: 3 },         // 虫たちが集まりだす(ハチ・チョウ / unlock40)
+  event_45: { type: 'insect', count: 2 },         // きのこが仲間を増やす(トンボ / unlock45)
+  event_50: { type: 'fish', count: 3 },           // 池が現れる(魚が跳ねる)
   event_55: { type: 'bird', count: 2 },           // 小鳥がやってくる(unlock55)
   event_60: { type: 'animal_ground', count: 1 },  // リスがあらわれる(unlock60)
   event_70: { type: 'animal_ground', count: 2 },  // うさぎとかえるが遊びに来る(unlock70)
-  event_85: { type: 'insect', count: 2 }          // 森じゅうがにぎやかになる
+  event_85: { type: 'insect', count: 2 },         // 森じゅうがにぎやかになる
+  event_95: { type: 'bird', count: 1 },           // 完成まであと少し
+  event_100: { type: 'animal_ground', count: 2 }  // 森の完成(フィナーレ)
 };
 
-// 「木」「岩」は"大物"として、児童が選んで置くのではなく進行度(%)に応じて
-// システム側が自動でspots.jsonの決まった場所へ配置する(v24)。
-// (v25) 森の始まりに置いていた「進行度15%でtree_oak_01を即フルサイズ配置」は、
-// 他のアセットに比べて大きすぎるうえ育つ演出も無く不自然だったため廃止。
-// 代わりに中心の symbolTreeSpot に「シンボルツリー」を森の開始時から1本植え、
-// 進行度に応じて少しずつ大きく描画する(見た目のスケーリングはrender.js側)。
-// treeSpotは全部で3つ。以前はevent_15で1本+event_65で残り2本だったが、
-// event_15を廃止したためevent_65でまとめて3本とも配置する。
-// rockSpotは合計10だが、event_35の一度きりの演出なので控えめに4個だけ配置する。
-// mushroom/effect(きらきら)スポットも同様にこれまで一度も自動配置されておらず
-// 空のままだったため、対応するイベントに合わせて追加した。
+// 進行度(%)に応じてシステム側が自動でspots.jsonの決まった場所へ配置するテーブル。
 const EVENT_AUTO_PLACE = {
-  event_35: { spotType: 'rock', count: 4 },      // 岩が顔を出す
-  event_45: { spotType: 'mushroom', count: 4 },  // きのこが仲間を増やす(unlock45)
-  event_65: { spotType: 'tree', count: 3 },      // 新しい木が仲間入り
-  event_75: { spotType: 'effect', count: 6 },    // 森が輝きだす
-  event_80: { spotType: 'effect', count: 4 },    // 虹が出る
-  event_95: { spotType: 'effect', count: 5 },    // 完成まであと少し
-  event_100: { spotType: 'effect', count: 10 }   // 森の完成(フィナーレのきらめき)
+  event_05: { spotType: 'grass', count: 4 },      // 草が芽吹く(新芽・草)
+  event_10: { spotType: 'flower', count: 3 },     // 花が咲く(小花)
+  event_15: { spotType: 'tree', count: 1 },       // 木が育つ(オークの木)
+  event_20: { spotType: 'seed', count: 3 },       // 森の音が聞こえる(木の実が落ちる)
+  event_25: { spotType: 'grass', count: 3 },      // 小道ができる(道ばたの草)
+  event_30: { spotType: 'seed', count: 2 },       // 橋がかかる(水辺の木の実)
+  event_35: { spotType: 'rock', count: 4 },       // 岩が顔を出す
+  event_40: { spotType: 'flower', count: 2 },     // 虫たちが集まりだす(追加の花)
+  event_45: { spotType: 'mushroom', count: 4 },   // きのこが仲間を増やす(unlock45)
+  event_50: { spotType: 'rock', count: 2 },       // 池が現れる(水辺の岩)
+  event_60: { spotType: 'seed', count: 3 },       // リスがあらわれる(どんぐりスポット)
+  event_65: { spotType: 'tree', count: 2 },       // 新しい木が仲間入り(白樺・針葉樹)
+  event_75: { spotType: 'effect', count: 6 },     // 森が輝きだす(光の粒子)
+  event_80: { spotType: 'effect', count: 4 },     // 虹が出る
+  event_85: { spotType: 'flower', count: 3 },     // 森じゅうがにぎやかになる
+  event_90: { spotType: 'effect', count: 6 },     // 特別な光が差し込む
+  event_95: { spotType: 'effect', count: 8 },     // 完成まであと少し
+  event_100: { spotType: 'effect', count: 15 }    // 森の完成(フィナーレのきらめき)
 };
 
 // バッジの解放判定ロジック。core-runtime(進行を確定させる側)と

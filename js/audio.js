@@ -86,6 +86,11 @@ export class AudioManager {
     osc.stop(startAt + duration + 0.02);
   }
 
+  beep(frequency = 520, duration = 0.08) {
+    if (!this.enabled) return;
+    this.tone(frequency, 0, duration, 0.08, 'sine');
+  }
+
   // 木や花を置いたときの「ポコッ」というかわいい配置音
   playPlace() {
     if (!this.enabled) return;
@@ -104,6 +109,40 @@ export class AudioManager {
     gain.connect(ctx.destination);
     osc.start(startAt);
     osc.stop(startAt + 0.13);
+  }
+
+  // 森の成長イベント（ポロロロ〜ン♪と上昇する木琴のような温かい音）
+  playGrow() {
+    if (!this.enabled) return;
+    if (!this.ensureContext()) return;
+    const freqs = [329.63, 392.00, 493.88, 587.33, 659.25, 783.99]; // E4, G4, B4, D5, E5, G5
+    freqs.forEach((f, i) => {
+      this.tone(f, i * 0.06, 0.3, 0.09, 'triangle');
+    });
+  }
+
+  // きらきらイベント音
+  playSparkle() {
+    if (!this.enabled) return;
+    if (!this.ensureContext()) return;
+    const freqs = [1046.5, 1318.5, 1567.98, 2093.0]; // C6, E6, G6, C7
+    freqs.forEach((f, i) => {
+      this.tone(f, i * 0.07, 0.4, 0.07, 'sine');
+    });
+  }
+
+  // 虹・フィナーレの壮大なファンファーレ
+  playRainbow() {
+    if (!this.enabled) return;
+    if (!this.ensureContext()) return;
+    const chord1 = [523.25, 659.25, 783.99]; // C
+    const chord2 = [587.33, 739.99, 880.0];  // D
+    const chord3 = [659.25, 830.61, 987.77]; // E
+    const chord4 = [1046.5, 1318.5, 1567.98]; // High C
+    chord1.forEach((f) => this.tone(f, 0, 0.35, 0.06, 'triangle'));
+    chord2.forEach((f) => this.tone(f, 0.2, 0.35, 0.06, 'triangle'));
+    chord3.forEach((f) => this.tone(f, 0.4, 0.45, 0.07, 'triangle'));
+    chord4.forEach((f) => this.tone(f, 0.65, 0.8, 0.09, 'triangle'));
   }
 
   // ありがとうメッセージが届いたときの「チリン♪」ベル音
