@@ -20,6 +20,8 @@ import {
   serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 
+import { FIREBASE_CONFIG } from './firebase-config.js';
+
 const LOCAL_FIREBASE_CONFIG_KEY = 'kokotsu_firebase_config_v1';
 
 export class FirebaseClient {
@@ -36,10 +38,15 @@ export class FirebaseClient {
   loadConfig() {
     try {
       const raw = window.localStorage.getItem(LOCAL_FIREBASE_CONFIG_KEY);
-      return raw ? JSON.parse(raw) : null;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.apiKey) return parsed;
+      }
     } catch (err) {
-      return null;
+      // noop
     }
+    // デフォルトで組み込みのFIREBASE_CONFIGを使用
+    return FIREBASE_CONFIG || null;
   }
 
   saveConfig(config) {
