@@ -1535,6 +1535,10 @@ export class ForestCore {
     return this.goalManager.listGoals(this.state);
   }
 
+  getGoal(goalId) {
+    return this.listGoals().find((g) => g.id === goalId) || null;
+  }
+
   getGoalSettings() {
     this.goalManager.ensureState(this.state);
     return this.state.goalSettings;

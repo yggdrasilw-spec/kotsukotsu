@@ -1578,10 +1578,16 @@ async function bootstrap() {
         return;
       }
 
+      const goalTitle = result.entry?.goalTitle || core.getGoal?.(goalId)?.title || '';
+
       if (result.needsApproval) {
         // 承認待ちは「まだ完了ではない」ので、達成演出は承認された時のために取っておく。
         toast('先生の承認をまってね');
-        firebaseSync.pushGoalCompletion({ goalId, goalTitle: core.getGoal(goalId)?.title || '', autoApprove: false });
+        try {
+          firebaseSync.pushGoalCompletion({ goalId, goalTitle, autoApprove: false });
+        } catch (err) {
+          console.warn('[app] pushGoalCompletion failed:', err);
+        }
         refresh();
         return;
       }
@@ -1590,7 +1596,11 @@ async function bootstrap() {
       // ボタン座標を保持
       const btnRect = completeBtn.getBoundingClientRect();
       audio.chime();
-      firebaseSync.pushGoalCompletion({ goalId, goalTitle: core.getGoal(goalId)?.title || '', autoApprove: true });
+      try {
+        firebaseSync.pushGoalCompletion({ goalId, goalTitle, autoApprove: true });
+      } catch (err) {
+        console.warn('[app] pushGoalCompletion failed:', err);
+      }
 
       // 即座にUIを再描画（ゼロ遅延で丸が●に変わり、ヘッダー・ドロワーのポイントと進捗リングが即時更新）
       pendingStatPulse = true;
@@ -1606,7 +1616,10 @@ async function bootstrap() {
       spawnCelebration(btnRect, result.pointsAwarded);
 
       // 全目標達成（今日の目標コンプリート）チェック
-      const currentGoals = core.getState()?.goalsView || [];
+      const currentGoals = core.listGoals().map((g) => ({
+        ...g,
+        ...core.getGoalStatus(g.id)
+      }));
       const totalTarget = currentGoals.reduce((sum, g) => sum + (Number(g.targetCount) || 1), 0);
       const totalDone = currentGoals.reduce((sum, g) => sum + (Number(g.done) || 0), 0);
       const isAllComplete = totalTarget > 0 && totalDone >= totalTarget;
