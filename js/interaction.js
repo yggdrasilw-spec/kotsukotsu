@@ -60,10 +60,9 @@ export class InteractionController {
 
   handlePointerDown = (event) => {
     if (event.button !== 0 && event.pointerType !== 'touch') return;
-    // オーバーレイ(完成画面・確認モーダル等)の中でのpointerdownまで viewportEl が
-    // pointer captureしてしまうと、以降のclickがボタン本体ではなくviewportEl側に
-    // 奪われてしまう(handleClickのガードだけでは防げない)。ここでも同様に除外する。
-    if (event.target.closest?.('.milestone-host, .placed-info-host, .welcome-host, .ending-host')) {
+    // オーバーレイやコントロールボタンの中でのpointerdownまで viewportEl が
+    // pointer captureしてしまうと、ボタンのclickが失われてしまうため除外する。
+    if (event.target.closest?.('.milestone-host, .placed-info-host, .welcome-host, .ending-host, .item-drawer-host, .item-drawer-fab, .viewport-controls, .placing-banner')) {
       return;
     }
     this.activePointerId = event.pointerId;
@@ -110,13 +109,8 @@ export class InteractionController {
       return;
     }
 
-    // 完成画面・確認モーダル・起動時ポップアップ・置いたものの詳細ポップアップは、
-    // すべてforestViewportの子要素として重ねて表示している(構造上の都合)。
-    // クリックはDOMをbubbleするため、何も対策しないとこれらの中のボタンを押した
-    // クリックがそのままviewportの「配置」判定まで届いてしまい、「切り株を配置しました」
-    // のように、押したつもりのボタンとは無関係な動作(現在選択中のアセットの配置)が
-    // 起きてしまう。オーバーレイの中でのクリックはここで止め、下の森には渡さない。
-    if (event.target.closest?.('.milestone-host, .placed-info-host, .welcome-host, .ending-host')) {
+    // 完成画面・確認モーダル・ボタン類の中でのクリックはここで止め、森の配置には渡さない。
+    if (event.target.closest?.('.milestone-host, .placed-info-host, .welcome-host, .ending-host, .item-drawer-host, .item-drawer-fab, .viewport-controls, .placing-banner')) {
       return;
     }
 
