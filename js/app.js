@@ -1200,7 +1200,8 @@ async function bootstrap() {
 
   function updateClassSyncStatus() {
     const bar = byId('classConnectBar');
-    if (bar) bar.style.display = classSync.isConfigured() ? 'none' : 'flex';
+    const isConnected = firebaseSync.isConfigured() || classSync.isConfigured();
+    if (bar) bar.style.display = isConnected ? 'none' : 'flex';
   }
 
   // ---- かんたん表示(低学年・支援級向けに、サイドパネルを1枚ずつに絞る) ----
@@ -1260,27 +1261,43 @@ async function bootstrap() {
 
   applySimpleMode();
 
-  document.addEventListener('submit', (event) => {
+  document.addEventListener('submit', async (event) => {
     const form = event.target.closest?.('#classConnectForm');
     if (!form) return;
     event.preventDefault();
     const classCode = (byId('classCodeFieldInput')?.value || '').trim();
     const nickname = (byId('classNicknameInput')?.value || '').trim();
     if (!classCode || !nickname) return;
-    if (!CONFIG.gasBaseUrl) {
-      toast('先生に接続先の設定をお願いしてください');
-      return;
-    }
-    classSync.joinExistingClass({ baseUrl: CONFIG.gasBaseUrl, classCode, nickname }).then((result) => {
-      if (result.ok) {
-        toast(`クラスに入りました（${classSync.info.classCode}）`);
-        core.setIdentity({ studentId: classSync.info.studentId, nickname: classSync.info.nickname });
-        classSync.startAutoSync();
-      } else {
-        toast(`入れませんでした: ${result.reason || 'unknown_error'}`);
+
+    let connected = false;
+    let studentId = null;
+
+    // (1) Firebase Firestore に接続
+    if (firebaseClient.isReady()) {
+      const fbRes = await firebaseSync.joinClass({ classCode, nickname });
+      if (fbRes.ok) {
+        connected = true;
+        studentId = fbRes.data.studentId;
       }
+    }
+
+    // (2) GAS にも接続（設定されている場合）
+    if (CONFIG.gasBaseUrl) {
+      classSync.joinExistingClass({ baseUrl: CONFIG.gasBaseUrl, classCode, nickname }).then((result) => {
+        if (result.ok) {
+          classSync.startAutoSync();
+        }
+      });
+    }
+
+    if (connected || classSync.isConfigured()) {
+      toast(`クラスに入りました（${classCode}）`);
+      core.setIdentity({ studentId: studentId || classSync.info?.studentId, nickname });
       updateClassSyncStatus();
-    });
+      refresh();
+    } else {
+      toast('入れませんでした。接続設定を確認してください');
+    }
   });
 
   document.addEventListener('click', (event) => {
@@ -1306,6 +1323,7 @@ async function bootstrap() {
           refresh();
           maybeShowSymbolTreeIntro();
           // クラス共有プレイなら、みんなでも同じ次代へ進めるようにサーバー側にも伝える。
+          firebaseSync.pushStartNewForest();
           classSync.pushStartNewForest();
         } else if (result.reason === 'waiting_for_teacher') {
           toast('先生が「次の森」を解放するまで、少し待ってね');
@@ -1318,6 +1336,9 @@ async function bootstrap() {
   });
 
   updateClassSyncStatus();
+  if (firebaseSync.isConfigured()) {
+    firebaseSync.startListening();
+  }
   if (classSync.isConfigured()) {
     classSync.startAutoSync();
   }
@@ -1412,6 +1433,7 @@ async function bootstrap() {
         toast('入手できませんでした');
         return;
       }
+      firebaseSync.pushBuyItem({ itemId, assetId, itemName: itemCard.dataset.name, price });
       classSync.pushBuyItem({ itemId, assetId, itemName: itemCard.dataset.name, price });
       if (core.getState().settings?.sfx) audio.beep(720, 0.05);
     }
@@ -1520,11 +1542,12 @@ async function bootstrap() {
             toast('入手できませんでした');
             return;
           }
+          firebaseSync.pushBuyItem({ itemId: item.id, assetId: item.assetId, itemName: item.name, price: item.price });
           classSync.pushBuyItem({ itemId: item.id, assetId: item.assetId, itemName: item.name, price: item.price });
         }
 
         // 指定スクリーン座標で配置を実行
-        const placeRes = controller.placeAtScreen(item.assetId, event.clientX, event.clientY);
+        const placeRes = interaction.placeAtScreen(item.assetId, event.clientX, event.clientY);
         if (placeRes.ok) {
           if (core.getState().settings?.sfx) audio.pop?.();
           closeItemDrawer();
@@ -1554,6 +1577,7 @@ async function bootstrap() {
       return;
     }
     toast('目標をつくりました');
+    firebaseSync.pushCreateGoal({ goal: result.goal });
     classSync.pushCreateGoal({ title, targetCount: target });
     refresh();
   });
@@ -1576,6 +1600,7 @@ async function bootstrap() {
     }
     if (nameSelect) nameSelect.value = '';
     toast(`${result.entry.toName}さんにありがとうを送りました`);
+    firebaseSync.pushThanks({ toName: result.entry.toName, message: '' });
     classSync.pushSendThanks({ toName: result.entry.toName, fromLabel: 'わたし' });
     refresh();
   });
@@ -1622,6 +1647,7 @@ async function bootstrap() {
         if (result.ok) {
           toast(`「${title}」を追加しました！`);
           audio.tone(587.33, 0, 0.15, 0.08); // D5
+          firebaseSync.pushCreateGoal({ goal: result.goal });
           classSync.pushCreateGoal({ title, targetCount: 1 });
           refresh();
         } else {
@@ -1731,6 +1757,7 @@ async function bootstrap() {
       confirmRemoveGoalId = null;
       if (core.removeGoal(goalId)) {
         toast('目標をやめました');
+        firebaseSync.pushRemoveGoal(goalId);
         classSync.pushRemoveGoal(goalId);
       }
       refresh();

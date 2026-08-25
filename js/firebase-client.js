@@ -171,6 +171,20 @@ export class FirebaseClient {
     return unsub;
   }
 
+  listenStudents({ classCode, onData, onError }) {
+    if (!this.db || !classCode) return () => {};
+    const colRef = collection(this.db, 'classes', classCode, 'students');
+    const unsub = onSnapshot(colRef, (snapshot) => {
+      const list = [];
+      snapshot.forEach((d) => {
+        list.push({ studentId: d.id, ...d.data() });
+      });
+      onData(list);
+    }, onError);
+    this.unsubscribers.push(unsub);
+    return unsub;
+  }
+
   // 全リスナー解除
   cleanup() {
     this.unsubscribers.forEach((u) => {
@@ -180,6 +194,80 @@ export class FirebaseClient {
   }
 
   // ---- 書込み操作 ----
+
+  async createClass({ classCode, teacherName, clearPoint = 1000, maxGoals = 3, goalApprovalMode = 'self' }) {
+    if (!this.db || !classCode) return { ok: false };
+    const ref = doc(this.db, 'classes', classCode);
+    const now = new Date().toISOString();
+    await setDoc(ref, {
+      classInfo: {
+        classCode,
+        teacherName: teacherName || '',
+        clearPoint,
+        maxGoals,
+        goalApprovalMode,
+        createdAt: now
+      },
+      forestState: {
+        classPoints: 0,
+        completedEvents: [],
+        forestGeneration: 1,
+        forestStatus: 'growing',
+        forestStartedAt: now,
+        forestCompletedAt: null,
+        nextForestUnlocked: true
+      },
+      updatedAt: now
+    }, { merge: true });
+    return { ok: true, classCode };
+  }
+
+  async getClass({ classCode }) {
+    if (!this.db || !classCode) return { ok: false };
+    const ref = doc(this.db, 'classes', classCode);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return { ok: false, reason: 'not_found' };
+    return { ok: true, data: snap.data() };
+  }
+
+  async updateClassSettings({ classCode, settings }) {
+    if (!this.db || !classCode || !settings) return { ok: false };
+    const ref = doc(this.db, 'classes', classCode);
+    await setDoc(ref, {
+      classInfo: settings,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+    return { ok: true };
+  }
+
+  async setStudent({ classCode, studentId, data }) {
+    if (!this.db || !classCode || !studentId) return { ok: false };
+    const ref = doc(this.db, 'classes', classCode, 'students', studentId);
+    await setDoc(ref, {
+      ...data,
+      studentId,
+      lastSeenAt: new Date().toISOString()
+    }, { merge: true });
+    return { ok: true };
+  }
+
+  async createGoal({ classCode, studentId, goal }) {
+    if (!this.db || !classCode || !goal || !goal.id) return { ok: false };
+    const ref = doc(this.db, 'classes', classCode, 'goals', goal.id);
+    await setDoc(ref, {
+      ...goal,
+      studentId,
+      createdAt: new Date().toISOString()
+    });
+    return { ok: true };
+  }
+
+  async deleteGoal({ classCode, goalId }) {
+    if (!this.db || !classCode || !goalId) return { ok: false };
+    const ref = doc(this.db, 'classes', classCode, 'goals', goalId);
+    await deleteDoc(ref);
+    return { ok: true };
+  }
 
   async setPlacedAsset({ classCode, placedId, data }) {
     if (!this.db || !classCode || !placedId) return { ok: false };

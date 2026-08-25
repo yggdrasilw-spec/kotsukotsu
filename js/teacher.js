@@ -270,11 +270,17 @@ async function main() {
   byId('btnCreateClass').addEventListener('click', async () => {
     const teacherName = byId('teacherNameInput').value.trim();
     const clearPoint = Number(byId('clearPointInput').value) || 1000;
+    const generatedClassCode = 'c_' + Math.random().toString(36).slice(2, 6).toUpperCase();
 
-    const res = await apiClient.createClass({ teacherName, clearPoint });
-    if (!res.ok) { showMessage(`作成できませんでした: ${res.reason || 'unknown_error'}`); return; }
+    if (firebaseClient.isReady()) {
+      await firebaseClient.createClass({ classCode: generatedClassCode, teacherName, clearPoint });
+    }
 
-    info = { classCode: res.data.classCode };
+    if (CONFIG.gasBaseUrl) {
+      apiClient.createClass({ teacherName, clearPoint }).catch(() => {});
+    }
+
+    info = { classCode: generatedClassCode };
     saveInfo(info);
     setView(true);
     await refreshDashboard();
@@ -285,8 +291,21 @@ async function main() {
     const classCode = byId('joinCodeInput').value.trim();
     if (!classCode) { showMessage('クラスコードを入力してください。'); return; }
 
-    const res = await apiClient.syncState({ classCode });
-    if (!res.ok) { showMessage(`クラスが見つかりませんでした: ${res.reason || 'unknown_error'}`); return; }
+    let exists = false;
+    if (firebaseClient.isReady()) {
+      const fbCheck = await firebaseClient.getClass({ classCode });
+      if (fbCheck.ok) exists = true;
+    }
+
+    if (!exists && CONFIG.gasBaseUrl) {
+      const res = await apiClient.syncState({ classCode });
+      if (res.ok) exists = true;
+    }
+
+    if (!exists && !firebaseClient.isReady()) {
+      showMessage('クラスが見つかりませんでした。クラスコードを確認してください。');
+      return;
+    }
 
     info = { classCode };
     saveInfo(info);
@@ -307,8 +326,15 @@ async function main() {
   byId('forestNow').addEventListener('click', async (event) => {
     if (!event.target.closest?.('#btnReleaseNextForest')) return;
     if (!info) return;
-    const res = await apiClient.releaseNextForest({ classCode: info.classCode });
-    if (!res.ok) { showMessage(`解放できませんでした: ${res.reason || 'unknown_error'}`); return; }
+    if (firebaseClient.isReady()) {
+      await firebaseClient.updateForestState({
+        classCode: info.classCode,
+        forestState: { nextForestUnlocked: true }
+      });
+    }
+    if (CONFIG.gasBaseUrl) {
+      apiClient.releaseNextForest({ classCode: info.classCode }).catch(() => {});
+    }
     showMessage('');
     refreshDashboard();
   });
@@ -325,14 +351,28 @@ async function main() {
     const stalledDays = Number(byId('stalledDaysInput').value) || 3;
     const supportDays = Number(byId('supportDaysInput').value) || 2;
 
-    const r1 = await apiClient.setGoalSettings({ classCode: info.classCode, maxGoals, approvalMode });
-    const r2 = await apiClient.setClearPoint({ classCode: info.classCode, clearPoint });
-    const r3 = await apiClient.setRosterThresholds({ classCode: info.classCode, stalledDays, supportDays });
-    if (r1.ok && r2.ok && r3.ok) {
-      showMessage('');
-    } else {
-      showMessage('設定の保存に失敗した項目があります。もう一度お試しください。');
+    if (firebaseClient.isReady()) {
+      await firebaseClient.updateClassSettings({
+        classCode: info.classCode,
+        settings: {
+          classCode: info.classCode,
+          goalApprovalMode: approvalMode,
+          maxGoals,
+          clearPoint,
+          stalledDays,
+          supportDays
+        }
+      });
     }
+
+    if (CONFIG.gasBaseUrl) {
+      apiClient.setGoalSettings({ classCode: info.classCode, maxGoals, approvalMode }).catch(() => {});
+      apiClient.setClearPoint({ classCode: info.classCode, clearPoint }).catch(() => {});
+      apiClient.setRosterThresholds({ classCode: info.classCode, stalledDays, supportDays }).catch(() => {});
+    }
+
+    showMessage('設定を保存しました✨');
+    setTimeout(() => showMessage(''), 3000);
     refreshDashboard();
   });
 

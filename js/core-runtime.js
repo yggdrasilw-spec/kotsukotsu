@@ -1435,6 +1435,75 @@ export class ForestCore {
     return this.state.animals;
   }
 
+  setPlacedAssets(placedAssets) {
+    if (!Array.isArray(placedAssets)) return;
+    this.state.placedAssets = placedAssets;
+    this.syncMilestones();
+    this.persist();
+  }
+
+  setClassPoints(points) {
+    const num = Number(points) || 0;
+    this.state.classPoints = num;
+    this.syncMilestones();
+    this.persist();
+  }
+
+  setCompletedEvents(events) {
+    if (!Array.isArray(events)) return;
+    this.state.completedEvents = events;
+    this.syncMilestones();
+    this.persist();
+  }
+
+  setForestGeneration(gen) {
+    const num = Number(gen) || 1;
+    this.state.forestGeneration = num;
+    this.persist();
+  }
+
+  setForestStatus(status) {
+    if (typeof status === 'string') {
+      this.state.forestStatus = status;
+      this.persist();
+    }
+  }
+
+  setGoals(goals) {
+    if (!Array.isArray(goals)) return;
+    this.state.goals = goals;
+    this.persist();
+  }
+
+  setClassInfo(classInfo) {
+    if (!classInfo || typeof classInfo !== 'object') return;
+    this.state.classInfo = {
+      ...this.state.classInfo,
+      ...classInfo
+    };
+    if (classInfo.goalApprovalMode) {
+      this.goalManager.setApprovalMode(this.state, classInfo.goalApprovalMode);
+    }
+    if (classInfo.maxGoals) {
+      this.goalManager.setMaxGoals(this.state, classInfo.maxGoals);
+    }
+    this.persist();
+  }
+
+  setClassmates(classmates) {
+    if (Array.isArray(classmates)) {
+      this.state.classmates = classmates;
+      this.persist();
+    }
+  }
+
+  setStudentDirectory(directory) {
+    if (directory && typeof directory === 'object') {
+      this.state.studentDirectory = directory;
+      this.persist();
+    }
+  }
+
   setSeason(season) {
     this.state.settings = this.state.settings || {};
     this.state.settings.season = season;
