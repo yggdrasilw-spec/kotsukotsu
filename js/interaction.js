@@ -144,22 +144,40 @@ export class InteractionController {
     const selected = this.placement.getSelectedAsset();
     if (!selected) return;
 
-    const local = this.getLocalPoint(event);
+    this.placeAtScreen(selected.id, event.clientX, event.clientY);
+  };
+
+  placeAtScreen(assetId, clientX, clientY) {
+    const rect = this.viewportEl.getBoundingClientRect();
+    if (
+      clientX < rect.left ||
+      clientX > rect.right ||
+      clientY < rect.top ||
+      clientY > rect.bottom
+    ) {
+      return { ok: false, reason: 'outside_viewport' };
+    }
+    const local = {
+      x: clientX - rect.left,
+      y: clientY - rect.top
+    };
     const world = this.camera.screenToWorld(local.x, local.y);
     const cell = this.camera.worldToCell(world.x, world.y);
-    const result = this.placement.placeAtCell(this.core, selected.id, cell.x, cell.y);
+    const result = this.placement.placeAtCell(this.core, assetId, cell.x, cell.y);
     if (result.ok) {
-      this.onToast(`${selected.name || selected.id} を配置`);
+      const asset = this.placement.assets.find((a) => a.id === assetId);
+      this.onToast(`${asset?.name || assetId} を配置しました✨`);
       this.onPlace(result.placed);
       this.onDirty();
-      return;
+      return result;
     }
     if (result.reason === 'not_owned') {
-      this.onToast('在庫がありません。ショップで買ってね');
+      this.onToast('在庫がありません。ポイントで購入してね');
     } else if (result.reason === 'spot_full') {
-      this.onToast('このスポットはもういっぱいです');
+      this.onToast('この場所はもういっぱいです');
     } else {
-      this.onToast('置ける場所が見つかりません');
+      this.onToast('ここには置けません');
     }
-  };
+    return result;
+  }
 }

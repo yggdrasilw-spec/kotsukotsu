@@ -232,28 +232,55 @@
             </div>
           </div>
 
+          <!-- 配置中バナー（タップで森に配置するモード時） -->
+          <div id="placingBanner" class="placing-banner" style="display:none;">
+            <div class="placing-banner__info">
+              <span id="placingBannerIcon" class="placing-banner__icon">🌱</span>
+              <span id="placingBannerText" class="placing-banner__text"><strong>花のたね</strong> を配置中（森の好きなマスをタップしてね）</span>
+            </div>
+            <button id="placingBannerCancel" class="btn btn--ghost btn--small" type="button">キャンセル</button>
+          </div>
+
           <div class="viewport-controls">
             <button id="btnZoomIn" class="icon-btn" title="ズーム＋" aria-label="ズームイン">＋</button>
             <button id="btnZoomOut" class="icon-btn" title="ズーム−" aria-label="ズームアウト">−</button>
             <button id="btnFitView" class="icon-btn" title="森全体を見る" aria-label="森全体を見る">🔭</button>
           </div>
+
+          <!-- フローティング 🎒 たね・もちもの ボタン -->
+          <button id="itemDrawerFab" class="item-drawer-fab" type="button" aria-label="たねともちものを開く">
+            <span class="item-drawer-fab__icon">🎒</span>
+            <span class="item-drawer-fab__label">たね・アイテム</span>
+            <span id="itemDrawerBadge" class="item-drawer-fab__badge" style="display:none;">0</span>
+          </button>
         </div>
       </main>
+    </div>
 
-      <aside class="sidebar sidebar--right">
-        <section class="panel" data-tab="shop">
-          <div class="panel-header">
-            <h2>🛍️ ショップ</h2>
+    <!-- たね・もちもの ドロワー（右からスライドイン） -->
+    <div id="itemDrawerHost" class="item-drawer-host" style="display:none;">
+      <div id="itemDrawerBackdrop" class="item-drawer-backdrop"></div>
+      <aside id="itemDrawer" class="item-drawer" aria-label="たねともちもの">
+        <div class="item-drawer__header">
+          <div class="item-drawer__title">
+            <span class="item-drawer__title-icon">🎒</span>
+            <h3><ruby>森<rt>もり</rt></ruby>のたね・アイテム</h3>
           </div>
-          <div id="placingIndicator" class="selected-asset" style="display:none;">
-            <div id="placingIndicatorName" class="selected-asset__name">—</div>
-            <div id="placingIndicatorMeta" class="selected-asset__meta">—</div>
+          <div class="item-drawer__header-actions">
+            <span class="stat-pill stat-pill--small">🪙 <strong id="drawerPersonalValue">0</strong> P</span>
+            <button id="itemDrawerClose" class="item-drawer__close" aria-label="とじる">×</button>
           </div>
-          <div class="selected-asset__hint">ショップで<ruby>選<rt>えら</rt></ruby>んで「<ruby>配置<rt>はいち</rt></ruby>する」を<ruby>押<rt>お</rt></ruby>したら、<ruby>森<rt>もり</rt></ruby>をタップしてね。</div>
-          <div id="shopPanel" class="shop-panel"></div>
-        </section>
+        </div>
+        <p class="item-drawer__guide">
+          ✨ <strong>ドラッグして森に置く</strong> か、タップで選んで森をタップしてね！
+        </p>
+        <div id="drawerCategoryTabs" class="drawer-category-tabs"></div>
+        <div id="drawerItemList" class="drawer-item-list"></div>
       </aside>
     </div>
+
+    <!-- ドラッグ中に指/マウスに追従するゴーストアイコン -->
+    <div id="dragGhost" class="drag-ghost" style="display:none;"></div>
 
     <!-- 「かんたん表示」時だけ表示するタブバー -->
     <nav id="panelTabs" class="panel-tabs" style="display:none;">
@@ -261,7 +288,7 @@
       <button type="button" class="panel-tabs__btn" data-tab-target="thanks">🧡 ありがとう</button>
       <button type="button" class="panel-tabs__btn" data-tab-target="classpower">🌟 クラスのちから</button>
       <button type="button" class="panel-tabs__btn" data-tab-target="badges">🏅 バッジ</button>
-      <button type="button" class="panel-tabs__btn" data-tab-target="shop">🛍️ ショップ</button>
+      <button type="button" class="panel-tabs__btn" id="panelTabShopBtn">🎒 アイテム</button>
     </nav>
   </div>
 

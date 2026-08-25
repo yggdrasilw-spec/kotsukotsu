@@ -12,7 +12,6 @@ import { ApiClient } from './api-client.js';
 import { ClassSync } from './class-sync.js';
 import { FirebaseClient } from './firebase-client.js';
 import { FirebaseSync } from './firebase-sync.js';
-import { initShopCarousels } from './shop-carousel.js';
 
 function byId(id) {
   return document.getElementById(id);
@@ -383,8 +382,47 @@ async function bootstrap() {
     setHTML('statusPanel', view.statusHtml);
     setHTML('eventLog', view.logHtml);
     setHTML('badgePanel', view.badgeHtml);
-    setHTML('shopPanel', view.shopHtml);
-    initShopCarousels();
+    
+    // ドロワー内のカテゴリタブとアイテム一覧
+    if (view.shopHtml) {
+      setHTML('drawerCategoryTabs', view.shopHtml.tabsHtml);
+      setHTML('drawerItemList', view.shopHtml.itemsHtml);
+    }
+    setText('drawerPersonalValue', `${Math.floor(state.personalPoints || 0)}`);
+
+    // 配置中バナーの表示・更新
+    const placingBanner = byId('placingBanner');
+    if (placingBanner) {
+      if (placement.selectedAssetId) {
+        const selAsset = placement.getSelectedAsset();
+        const iconEl = byId('placingBannerIcon');
+        const textEl = byId('placingBannerText');
+        if (iconEl && selAsset) {
+          const visual = (typeof resolveVisual === 'function' ? resolveVisual(selAsset) : { image: selAsset.image });
+          iconEl.style.backgroundImage = visual?.image ? `url('${visual.image}')` : 'none';
+          iconEl.textContent = visual?.image ? '' : '🌱';
+        }
+        if (textEl && selAsset) {
+          textEl.innerHTML = `<strong>${escapeHtml(selAsset.name || selAsset.id)}</strong> を配置中（森の好きなマスをタップしてね）`;
+        }
+        placingBanner.style.display = 'flex';
+      } else {
+        placingBanner.style.display = 'none';
+      }
+    }
+
+    // FABボタンの所持アイテム総数バッジ
+    const totalOwnedItems = Object.values(state.assetQuantities || {}).reduce((sum, q) => sum + (Number(q) || 0), 0);
+    const fabBadge = byId('itemDrawerBadge');
+    if (fabBadge) {
+      if (totalOwnedItems > 0) {
+        fabBadge.textContent = totalOwnedItems;
+        fabBadge.style.display = 'inline-block';
+      } else {
+        fabBadge.style.display = 'none';
+      }
+    }
+
     setHTML('goalPanel', view.goalHtml);
     setHTML('classPowerPanel', view.classPowerHtml);
     setText('progressPercentValue', `${Math.floor(core.getProgressPercent())}%`);
@@ -1166,7 +1204,7 @@ async function bootstrap() {
   }
 
   // ---- かんたん表示(低学年・支援級向けに、サイドパネルを1枚ずつに絞る) ----
-  const TAB_IDS = ['goals', 'thanks', 'badges', 'shop'];
+  const TAB_IDS = ['goals', 'thanks', 'classpower', 'badges'];
   let activeTab = TAB_IDS[0];
 
   function applySimpleMode() {
@@ -1289,40 +1327,213 @@ async function bootstrap() {
     toast('保存データを書き出しました');
   });
 
-  document.addEventListener('click', (event) => {
-    const buyBtn = event.target.closest?.('[data-buy-shop]');
-    if (!buyBtn) return;
-    const itemId = buyBtn.dataset.buyShop;
-    const result = core.buy(itemId);
-    if (!result.ok) {
-      toast('購入できませんでした');
-      return;
-    }
-    if (core.getState().settings?.sfx) {
-      audio.beep(720, 0.05);
-    }
-    toast(`${result.item.name || result.item.id} を入手`);
-    classSync.pushBuyItem({ itemId, assetId: result.item.assetId, itemName: result.item.name, price: result.item.price });
+  // ---- たね・もちもの ドロワー制御 ----
+  let isItemDrawerOpen = false;
+
+  function openItemDrawer() {
+    isItemDrawerOpen = true;
+    const host = byId('itemDrawerHost');
+    if (host) host.style.display = 'flex';
+    refresh();
+  }
+
+  function closeItemDrawer() {
+    isItemDrawerOpen = false;
+    const host = byId('itemDrawerHost');
+    if (host) host.style.display = 'none';
+  }
+
+  function toggleItemDrawer() {
+    if (isItemDrawerOpen) closeItemDrawer();
+    else openItemDrawer();
+  }
+
+  bindButton('itemDrawerFab', () => toggleItemDrawer());
+  bindButton('itemDrawerClose', () => closeItemDrawer());
+  bindButton('itemDrawerBackdrop', () => closeItemDrawer());
+  bindButton('panelTabShopBtn', () => openItemDrawer());
+  bindButton('placingBannerCancel', () => {
+    placement.clearSelection();
+    toast('配置をキャンセルしました');
     refresh();
   });
 
+  // ESCキーでドロワーまたは配置モードを解除
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (isItemDrawerOpen) closeItemDrawer();
+      if (placement.selectedAssetId) {
+        placement.clearSelection();
+        toast('配置をキャンセルしました');
+        refresh();
+      }
+    }
+  });
+
+  // ドロワー内カテゴリタブ切り替え
   document.addEventListener('click', (event) => {
-    const placeBtn = event.target.closest?.('[data-place-shop]');
-    if (!placeBtn) return;
-    const assetId = placeBtn.dataset.placeShop;
-    if (placement.selectedAssetId === assetId) {
-      // もう一度押したら配置モードを解除(トグル)。
-      placement.clearSelection();
-      refresh();
-      return;
-    }
-    if (core.getAssetQuantity(assetId) <= 0) {
-      toast('在庫がありません。ショップで買ってね');
-      return;
-    }
-    placement.selectAsset(assetId);
-    toast('森をタップして配置してね');
+    const tabBtn = event.target.closest?.('[data-drawer-category]');
+    if (!tabBtn) return;
+    const category = tabBtn.dataset.drawerCategory;
+    renderer.setActiveShopCategory(category);
     refresh();
+  });
+
+  // ドロワー内アイテムのタップ選択（タップで選んで森をタップして置く）
+  document.addEventListener('click', (event) => {
+    const itemCard = event.target.closest?.('[data-drawer-item]');
+    if (!itemCard) return;
+    if (dragState.didDrag) {
+      dragState.didDrag = false;
+      return;
+    }
+    const assetId = itemCard.dataset.assetId;
+    const itemId = itemCard.dataset.id;
+    const unlocked = itemCard.dataset.unlocked === '1';
+    const unlockProgress = itemCard.dataset.unlockProgress;
+    const price = Number(itemCard.dataset.price || 0);
+    const qty = Number(itemCard.dataset.qty || 0);
+    const personalPoints = Number(core.getState().personalPoints || 0);
+
+    if (!unlocked) {
+      toast(`森の成長が ${unlockProgress}% になると解放されるよ！`);
+      return;
+    }
+
+    if (qty <= 0 && personalPoints < price) {
+      toast(`ポイントが足りないよ（あと ${price - personalPoints} P）`);
+      return;
+    }
+
+    // 在庫がなくポイントがある場合は、選択した時点で1個入手して配置モードへ
+    if (qty <= 0 && personalPoints >= price) {
+      const buyRes = core.buy(itemId);
+      if (!buyRes.ok) {
+        toast('入手できませんでした');
+        return;
+      }
+      classSync.pushBuyItem({ itemId, assetId, itemName: itemCard.dataset.name, price });
+      if (core.getState().settings?.sfx) audio.beep(720, 0.05);
+    }
+
+    placement.selectAsset(assetId);
+    closeItemDrawer();
+    const asset = assets.find((a) => a.id === assetId);
+    toast(`「${asset?.name || assetId}」を選んだよ。森の好きなマスをタップしてね！`);
+    refresh();
+  });
+
+  // ---- ドラッグ＆ドロップ（DnD: ポインター & タッチ対応） ----
+  const dragState = {
+    active: false,
+    didDrag: false,
+    item: null,
+    startX: 0,
+    startY: 0
+  };
+
+  const dragGhostEl = byId('dragGhost');
+  const drawerEl = byId('itemDrawer');
+
+  document.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 && event.pointerType !== 'touch') return;
+    const itemCard = event.target.closest?.('[data-drawer-item]');
+    if (!itemCard) return;
+    const unlocked = itemCard.dataset.unlocked === '1';
+    if (!unlocked) return;
+
+    dragState.active = true;
+    dragState.didDrag = false;
+    dragState.startX = event.clientX;
+    dragState.startY = event.clientY;
+    dragState.item = {
+      id: itemCard.dataset.id,
+      assetId: itemCard.dataset.assetId,
+      name: itemCard.dataset.name,
+      image: itemCard.dataset.image,
+      price: Number(itemCard.dataset.price || 0),
+      qty: Number(itemCard.dataset.qty || 0)
+    };
+  });
+
+  window.addEventListener('pointermove', (event) => {
+    if (!dragState.active || !dragState.item) return;
+    const dx = event.clientX - dragState.startX;
+    const dy = event.clientY - dragState.startY;
+    if (!dragState.didDrag && Math.hypot(dx, dy) > 6) {
+      dragState.didDrag = true;
+      if (dragGhostEl) {
+        dragGhostEl.style.backgroundImage = `url('${dragState.item.image}')`;
+        dragGhostEl.style.display = 'block';
+      }
+      if (drawerEl) drawerEl.style.opacity = '0.45';
+    }
+
+    if (dragState.didDrag) {
+      if (dragGhostEl) {
+        dragGhostEl.style.left = `${event.clientX}px`;
+        dragGhostEl.style.top = `${event.clientY}px`;
+      }
+      const vRect = viewportEl.getBoundingClientRect();
+      const isOverForest = (
+        event.clientX >= vRect.left &&
+        event.clientX <= vRect.right &&
+        event.clientY >= vRect.top &&
+        event.clientY <= vRect.bottom
+      );
+      viewportEl.classList.toggle('is-drag-over', isOverForest);
+    }
+  });
+
+  window.addEventListener('pointerup', (event) => {
+    if (!dragState.active) return;
+    const wasDragging = dragState.didDrag;
+    const item = dragState.item;
+    dragState.active = false;
+    dragState.item = null;
+
+    if (dragGhostEl) dragGhostEl.style.display = 'none';
+    if (drawerEl) drawerEl.style.opacity = '1';
+    viewportEl.classList.remove('is-drag-over');
+
+    if (wasDragging && item) {
+      const vRect = viewportEl.getBoundingClientRect();
+      const isOverForest = (
+        event.clientX >= vRect.left &&
+        event.clientX <= vRect.right &&
+        event.clientY >= vRect.top &&
+        event.clientY <= vRect.bottom
+      );
+
+      if (isOverForest) {
+        const personalPoints = Number(core.getState().personalPoints || 0);
+        const currentQty = core.getAssetQuantity(item.assetId);
+
+        // 在庫がない場合は自動購入を試みる
+        if (currentQty <= 0) {
+          if (personalPoints < item.price) {
+            toast(`ポイントが足りないよ（あと ${item.price - personalPoints} P）`);
+            return;
+          }
+          const buyRes = core.buy(item.id);
+          if (!buyRes.ok) {
+            toast('入手できませんでした');
+            return;
+          }
+          classSync.pushBuyItem({ itemId: item.id, assetId: item.assetId, itemName: item.name, price: item.price });
+        }
+
+        // 指定スクリーン座標で配置を実行
+        const placeRes = controller.placeAtScreen(item.assetId, event.clientX, event.clientY);
+        if (placeRes.ok) {
+          if (core.getState().settings?.sfx) audio.pop?.();
+          closeItemDrawer();
+          refresh();
+        } else {
+          refresh();
+        }
+      }
+    }
   });
 
   document.addEventListener('submit', (event) => {

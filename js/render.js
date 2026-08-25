@@ -362,70 +362,97 @@ export function createForestRenderer({
   }
 
 
-  function renderShop(state) {
+  let activeShopCategory = 'all';
+
+  function setActiveShopCategory(category) {
+    activeShopCategory = category || 'all';
+  }
+
+  function getActiveShopCategory() {
+    return activeShopCategory;
+  }
+
+  function renderShop(state, categoryFilter = null) {
     const items = Array.isArray(state?.shopItems) ? state.shopItems : [];
     const progress = computeProgressPercent(state);
     const points = Number(state?.personalPoints || 0);
     const quantities = state?.assetQuantities || {};
     const selectedAssetId = state?.selectedAssetId || null;
-    if (!items.length) return '<p class="muted">ショップ商品がまだありません。</p>';
+    if (!items.length) {
+      return {
+        tabsHtml: '',
+        itemsHtml: '<p class="muted" style="grid-column:1/-1;text-align:center;padding:20px;">アイテムがまだありません。</p>'
+      };
+    }
 
-    const sections = new Map();
-    items.forEach((item) => {
-      const category = item.category || 'misc';
-      if (!sections.has(category)) sections.set(category, []);
-      sections.get(category).push(item);
-    });
+    // カテゴリ一覧の抽出
+    const categories = ['all', ...new Set(items.map((item) => item.category || 'その他'))];
+    const targetCategory = categoryFilter || activeShopCategory || 'all';
 
-    // stamp_card.htmlのスタンプピッカーと同じ「1行カルーセル」方式。
-    // カテゴリが何点あっても常に1行に収まり、中央＝いま見ている商品として
-    // 詳細（名前・価格・購入/配置ボタン、または解放条件）を下の.shop-detailに出す。
-    // 実際の中央寄せ・ドラッグ・詳細更新はjs/shop-carousel.jsが担当するため、
-    // ここでは各カードにdata属性で必要な情報を持たせるだけにとどめる。
-    return [...sections.entries()].map(([category, entries]) => {
-      const cardsHtml = entries.map((item) => {
-        const price = Number(item?.price || 0);
-        const qty = Number(quantities[item.assetId] || 0);
-        const unlockProgress = Number(item?.unlockCondition?.progress || 0);
-        const unlocked = progress >= unlockProgress;
-        const canBuy = unlocked && points >= price;
-        const isPlacing = selectedAssetId === item.assetId;
-        const asset = assetById.get(item.assetId) || null;
-        const { image } = resolveVisual(asset);
-        const icon = `<div class="shop-card__icon" style="background-image:url('${image}')"></div>`;
-        return `
-          <div class="shop-carousel-item ${qty > 0 ? 'is-owned' : ''} ${unlocked ? '' : 'is-locked'} ${isPlacing ? 'is-placing' : ''}"
-               data-shop-item
-               data-id="${escapeHtml(item.id)}"
-               data-asset-id="${escapeHtml(item.assetId)}"
-               data-name="${escapeHtml(item.name || item.id)}"
-               data-desc="${escapeHtml(item.description || '')}"
-               data-price="${price}"
-               data-qty="${qty}"
-               data-unlocked="${unlocked ? '1' : '0'}"
-               data-unlock-progress="${unlockProgress}"
-               data-can-buy="${canBuy ? '1' : '0'}"
-               data-is-placing="${isPlacing ? '1' : '0'}">
-            ${icon}
-            ${qty > 0 ? `<span class="shop-carousel-item__qty">×${qty}</span>` : ''}
-          </div>
-        `;
-      }).join('');
+    const categoryLabels = {
+      all: 'すべて',
+      きぎ: '🌲 きぎ',
+      しぜん: '🍄 しぜん',
+      どうぶつ: '🐾 どうぶつ',
+      かざり: '⛺ かざり'
+    };
+
+    const tabsHtml = categories.map((cat) => {
+      const label = categoryLabels[cat] || cat;
+      const isActive = cat === targetCategory;
+      return `<button type="button" class="drawer-category-tab ${isActive ? 'is-active' : ''}" data-drawer-category="${escapeHtml(cat)}">${escapeHtml(label)}</button>`;
+    }).join('');
+
+    const filteredItems = targetCategory === 'all'
+      ? items
+      : items.filter((item) => (item.category || 'その他') === targetCategory);
+
+    const itemsHtml = filteredItems.map((item) => {
+      const price = Number(item?.price || 0);
+      const qty = Number(quantities[item.assetId] || 0);
+      const unlockProgress = Number(item?.unlockCondition?.progress || 0);
+      const unlocked = progress >= unlockProgress;
+      const canBuy = unlocked && (points >= price || qty > 0);
+      const isPlacing = selectedAssetId === item.assetId;
+      const asset = assetById.get(item.assetId) || null;
+      const { image } = resolveVisual(asset);
+
+      let metaHtml = '';
+      if (!unlocked) {
+        metaHtml = `<div class="drawer-item-card__lock-hint">🔒 森 ${unlockProgress}%</div>`;
+      } else if (qty > 0) {
+        metaHtml = `<div class="drawer-item-card__meta"><span class="drawer-item-card__price is-free">のこり ${qty}個</span></div>`;
+      } else {
+        metaHtml = `<div class="drawer-item-card__meta"><span class="drawer-item-card__price">🪙 ${price} P</span></div>`;
+      }
 
       return `
-        <section class="shop-section" data-shop-category="${escapeHtml(category)}">
-          <h3>${escapeHtml(category)}</h3>
-          <div class="shop-carousel">
-            <button type="button" class="shop-carousel-arrow" data-shop-prev aria-label="まえの商品">‹</button>
-            <div class="shop-carousel-viewport">
-              <div class="shop-carousel-track" data-shop-track>${cardsHtml}</div>
-            </div>
-            <button type="button" class="shop-carousel-arrow" data-shop-next aria-label="つぎの商品">›</button>
-          </div>
-          <div class="shop-detail" data-shop-detail></div>
-        </section>
+        <div class="drawer-item-card ${qty > 0 ? 'is-owned' : ''} ${unlocked ? '' : 'is-locked'} ${isPlacing ? 'is-placing' : ''}"
+             ${unlocked ? 'draggable="true"' : ''}
+             data-drawer-item
+             data-id="${escapeHtml(item.id)}"
+             data-asset-id="${escapeHtml(item.assetId)}"
+             data-name="${escapeHtml(item.name || item.id)}"
+             data-desc="${escapeHtml(item.description || '')}"
+             data-image="${escapeHtml(image)}"
+             data-price="${price}"
+             data-qty="${qty}"
+             data-unlocked="${unlocked ? '1' : '0'}"
+             data-unlock-progress="${unlockProgress}"
+             data-can-buy="${canBuy ? '1' : '0'}"
+             data-is-placing="${isPlacing ? '1' : '0'}">
+          ${qty > 0 ? `<span class="drawer-item-card__qty">×${qty}</span>` : ''}
+          <div class="drawer-item-card__icon" style="background-image:url('${image}')"></div>
+          <div class="drawer-item-card__name">${escapeHtml(item.name || item.id)}</div>
+          ${metaHtml}
+        </div>
       `;
     }).join('');
+
+    return {
+      tabsHtml,
+      itemsHtml
+    };
   }
 
   // 目標パネル: 一覧＋クリアボタン＋新規作成フォーム。
@@ -773,6 +800,8 @@ export function createForestRenderer({
     renderEventLog,
     renderBadgePanel,
     renderShop,
+    setActiveShopCategory,
+    getActiveShopCategory,
     renderClassPower
   };
 }

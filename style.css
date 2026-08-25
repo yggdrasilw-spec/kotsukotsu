@@ -204,10 +204,10 @@ ruby rt {
   background: rgba(255,255,255,0.6);
 }
 
-/* メインレイアウト */
+/* メインレイアウト（左サイドバー + 広々とした森ステージ） */
 .main-layout {
   display: grid;
-  grid-template-columns: 310px minmax(0, 1fr) 350px;
+  grid-template-columns: 310px minmax(0, 1fr);
   gap: 12px;
   padding: 12px;
   min-height: 0;
@@ -365,33 +365,322 @@ ruby rt {
   50% { transform: scale(1.04) translateY(-2px); }
 }
 
-/* ショップパネル */
-.shop-panel {
+/* 配置中バナー（画面上部中央） */
+.placing-banner {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.96);
+  border: 2px solid #5aa864;
+  border-radius: 999px;
+  padding: 6px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+  z-index: 40;
+  animation: floatDown 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.placing-banner__info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #244229;
+}
+.placing-banner__icon {
+  font-size: 18px;
+}
+.placing-banner__text strong {
+  color: #2e7d32;
+}
+
+/* フローティング 🎒 たね・もちもの ボタン (FAB) */
+.item-drawer-fab {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #fffae8 0%, #ffeaa7 100%);
+  border: 2.5px solid #d4a342;
+  color: #5c3c0d;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 14px;
+  box-shadow: 0 6px 18px rgba(92, 60, 13, 0.22);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.item-drawer-fab:hover {
+  transform: translateY(-3px) scale(1.04);
+  box-shadow: 0 8px 22px rgba(92, 60, 13, 0.3);
+  border-color: #ba831d;
+  background: linear-gradient(135deg, #ffffff 0%, #ffefa8 100%);
+}
+.item-drawer-fab:active {
+  transform: translateY(0) scale(0.96);
+}
+.item-drawer-fab__icon {
+  font-size: 22px;
+  line-height: 1;
+}
+.item-drawer-fab__badge {
+  background: #e74c3c;
+  color: #ffffff;
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+/* たね・もちもの ドロワー（右スライドイン） */
+.item-drawer-host {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: flex-end;
+}
+.item-drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 35, 20, 0.35);
+  backdrop-filter: blur(2px);
+  animation: fadeIn 0.2s ease-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.item-drawer {
+  position: relative;
+  width: 360px;
+  max-width: 92vw;
+  height: 100%;
+  background: #fdfbf7;
+  border-left: 3px solid var(--panel-border);
+  box-shadow: -8px 0 28px rgba(0, 0, 0, 0.18);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  z-index: 2;
+  animation: slideInRight 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 16px 16px 20px;
 }
-.shop-item-card {
-  background: #ffffff;
-  border: 1.5px solid var(--panel-border);
-  border-radius: var(--radius-sm);
-  padding: 10px;
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.item-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--panel-border);
+}
+.item-drawer__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.item-drawer__title-icon {
+  font-size: 22px;
+}
+.item-drawer__title h3 {
+  margin: 0;
+  font-size: 17px;
+  color: #244229;
+  font-weight: 800;
+}
+.item-drawer__header-actions {
   display: flex;
   align-items: center;
   gap: 10px;
-  box-shadow: var(--shadow-sm);
+}
+.stat-pill--small {
+  padding: 3px 9px;
+  font-size: 12px;
+}
+.item-drawer__close {
+  background: #f0ebe1;
+  border: 1.5px solid var(--panel-border);
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--muted);
+  cursor: pointer;
   transition: all 0.15s;
 }
-.shop-item-card:hover {
-  border-color: var(--accent);
-  transform: translateY(-2px);
+.item-drawer__close:hover {
+  background: #e2dacd;
+  color: var(--text);
+  transform: scale(1.08);
 }
-.shop-item-thumb {
-  width: 48px;
-  height: 48px;
+
+.item-drawer__guide {
+  font-size: 12px;
+  color: #5c6e54;
+  margin: 10px 0 8px;
+  background: #eff7ed;
+  border: 1px solid #c9e2c4;
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+}
+
+/* ドロワー内 カテゴリタブ */
+.drawer-category-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.drawer-category-tab {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 999px;
+  border: 1.5px solid var(--panel-border);
+  background: #ffffff;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.drawer-category-tab:hover {
+  border-color: var(--accent);
+  background: #f4faf2;
+}
+.drawer-category-tab.is-active {
+  background: #468c51;
+  color: #ffffff;
+  border-color: #387842;
+}
+
+/* ドロワー内 アイテムグリッド */
+.drawer-item-list {
+  flex: 1;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  padding-right: 2px;
+}
+.drawer-item-card {
+  background: #ffffff;
+  border: 2px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.drawer-item-card:hover {
+  transform: translateY(-2px);
+  border-color: #63aa6e;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+}
+.drawer-item-card:active {
+  cursor: grabbing;
+}
+.drawer-item-card.is-placing {
+  border-color: #468c51;
+  background: #eff9ee;
+  box-shadow: 0 0 0 2px #63aa6e;
+}
+.drawer-item-card.is-locked {
+  opacity: 0.55;
+  filter: grayscale(0.7);
+  cursor: not-allowed;
+  background: #f8f6f0;
+}
+
+.drawer-item-card__icon {
+  width: 56px;
+  height: 56px;
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
+  margin-bottom: 6px;
+  transition: transform 0.15s;
+}
+.drawer-item-card:hover .drawer-item-card__icon {
+  transform: scale(1.08);
+}
+.drawer-item-card__name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #2f442b;
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+.drawer-item-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.drawer-item-card__qty {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: #468c51;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 999px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+.drawer-item-card__price {
+  color: #b37400;
+}
+.drawer-item-card__price.is-free {
+  color: #2e7d32;
+}
+.drawer-item-card__lock-hint {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* ドラッグ中に指/マウスに追従するゴースト要素 */
+.drag-ghost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+  width: 64px;
+  height: 64px;
+  transform: translate(-50%, -50%) scale(1.1);
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: drop-shadow(0 8px 16px rgba(0,0,0,0.3));
+  transition: transform 0.05s ease-out;
+}
+
+/* ドラッグ中に森ビューポートにホバーした時のハイライト */
+.forest-viewport.is-drag-over {
+  outline: 3px dashed #63aa6e;
+  outline-offset: -4px;
 }
 
 /* ポップアップ・モーダル */
