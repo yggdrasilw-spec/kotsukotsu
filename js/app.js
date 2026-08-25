@@ -63,28 +63,40 @@ function setText(id, text) {
 
 // 「クリア」ボタンの位置や指定座標から、+ポイントと星をふわっと飛ばす。
 function spawnCelebration(anchor, points) {
-  const rect = anchor?.getBoundingClientRect ? anchor.getBoundingClientRect() : anchor;
-  if (!rect || typeof rect.left !== 'number') return;
-  const originX = rect.left + (rect.width || 0) / 2;
-  const originY = rect.top + (rect.height || 0) / 2;
+  let originX = window.innerWidth / 2;
+  let originY = window.innerHeight / 2;
+
+  if (anchor) {
+    if (typeof anchor.getBoundingClientRect === 'function') {
+      const rect = anchor.getBoundingClientRect();
+      originX = rect.left + rect.width / 2;
+      originY = rect.top + rect.height / 2;
+    } else if (typeof anchor.left === 'number') {
+      originX = anchor.left + (anchor.width || 0) / 2;
+      originY = anchor.top + (anchor.height || 0) / 2;
+    }
+  }
 
   const pieces = [];
-  if (points) pieces.push({ text: `+${points}`, cls: 'celebrate-particle--points', dx: 0, delay: 0 });
-  const emojis = ['✨', '🌟', '💮', '🍃', '⭐'];
+  if (points) pieces.push({ text: `+${points}P`, cls: 'celebrate-particle--points', dx: 0, dy: -24, delay: 0 });
+  const emojis = ['✨', '🌟', '💮', '🍃', '⭐', '🎉'];
   emojis.forEach((emoji, i) => {
-    pieces.push({ text: emoji, cls: 'celebrate-particle--emoji', dx: (i - 2) * 24, delay: 30 + i * 35 });
+    const angle = (i / emojis.length) * Math.PI * 2;
+    const dist = 28 + (i % 2) * 16;
+    const dx = Math.cos(angle) * dist;
+    const dy = Math.sin(angle) * dist;
+    pieces.push({ text: emoji, cls: 'celebrate-particle--emoji', dx, dy, delay: 15 + i * 25 });
   });
 
-  pieces.forEach(({ text, cls, dx, delay }) => {
+  pieces.forEach(({ text, cls, dx, dy, delay }) => {
     window.setTimeout(() => {
       const el = document.createElement('span');
       el.className = `celebrate-particle ${cls}`;
       el.textContent = text;
-      el.style.left = `${originX}px`;
-      el.style.top = `${originY}px`;
-      el.style.setProperty('--drift-x', `calc(-50% + ${dx}px)`);
+      el.style.left = `${originX + dx}px`;
+      el.style.top = `${originY + dy}px`;
       document.body.appendChild(el);
-      window.setTimeout(() => el.remove(), 1000);
+      window.setTimeout(() => el.remove(), 1200);
     }, delay);
   });
 }
@@ -1612,8 +1624,17 @@ async function bootstrap() {
         targetCard.classList.add('goal-card--celebrate');
       }
 
-      // パーティクル演出
+      // ボタン上からのパーティクル演出
       spawnCelebration(btnRect, result.pointsAwarded);
+
+      // ヘッダーの所持ポイント上でもパルスと小さな星を演出
+      const personalEl = byId('personalValue');
+      if (personalEl) {
+        pulse('personalValue');
+        window.setTimeout(() => {
+          spawnCelebration(personalEl, 0);
+        }, 120);
+      }
 
       // 全目標達成（今日の目標コンプリート）チェック
       const currentGoals = core.listGoals().map((g) => ({
