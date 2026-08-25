@@ -19,9 +19,8 @@ function rb(kanji, reading) {
 // 本物の画像が揃ったら assets.json から emoji フィールドを外すだけで、
 // ここは自動的に image 側へ切り替わる。
 function resolveVisual(asset) {
-  if (!asset) return { image: '', glyph: '', color: '' };
-  if (asset.emoji) return { image: '', glyph: asset.emoji, color: asset.placeholderColor || '' };
-  return { image: asset.image ? `assets/${asset.image}` : '', glyph: '', color: asset.placeholderColor || '' };
+  if (!asset) return { image: '' };
+  return { image: asset.image ? `assets/${asset.image}` : '' };
 }
 
 function assetSize(asset, cellSize) {
@@ -61,28 +60,13 @@ function symbolTreeScale(progressPercent) {
   return 1 + (p / 100) * 5;
 }
 
-function makeNodeHtml({ id, title, image, glyph = '', className = '', left, top, width, height, layer, extraData = '', label = '', tileSize = null, glyphColor = '', color = '' }) {
+function makeNodeHtml({ id, title, image, className = '', left, top, width, height, layer, extraData = '', label = '', tileSize = null }) {
   const style = [
     `left:${left}px`,
     `top:${top}px`,
     `width:${width}px`,
     `height:${height}px`
   ];
-
-  // 本物の画像(image)が無く、絵文字プレースホルダー(glyph)がある場合は
-  // background-imageを使わず、中央に大きく絵文字を1文字表示するだけにする。
-  // 本物の画像が用意できたら、データ側からemojiフィールドを外すだけで
-  // 自動的にこちらの分岐を通らなくなり、コード側は触らずに済む。
-  if (!image && glyph) {
-    const styleStr = style.join(';');
-    const fontSize = Math.max(10, Math.round(Math.min(width, height) * 0.7));
-    return `
-      <div class="forest-node forest-node--glyph ${className}" data-id="${escapeHtml(id)}" data-layer="${escapeHtml(layer)}" title="${escapeHtml(title)}" style="${styleStr}${glyphColor ? `;background:${glyphColor}` : ''}" ${extraData}>
-        <span class="forest-node__glyph" style="font-size:${fontSize}px;line-height:${height}px;">${escapeHtml(glyph)}</span>
-        <div class="forest-node__label">${escapeHtml(label || title)}</div>
-      </div>
-    `;
-  }
 
   // tileSize が指定されている場合は、1マス分の画像を繰り返し敷き詰める
   // (地面や小道など、面全体を1枚の画像で引き伸ばしてしまわないようにするため)
@@ -92,8 +76,7 @@ function makeNodeHtml({ id, title, image, glyph = '', className = '', left, top,
     style.push('background-repeat:no-repeat', 'background-size:contain');
   }
   const styleStr = style.join(';');
-  const colorStyle = color ? `background-color:${color};` : '';
-  const bg = image ? `style="${colorStyle}background-image:url('${image}');${styleStr}"` : `style="${styleStr}"`;
+  const bg = image ? `style="background-image:url('${image}');${styleStr}"` : `style="${styleStr}"`;
   return `
     <div class="forest-node ${className}" data-id="${escapeHtml(id)}" data-layer="${escapeHtml(layer)}" title="${escapeHtml(title)}" ${bg} ${extraData}>
       <div class="forest-node__label">${escapeHtml(label || title)}</div>
@@ -179,7 +162,7 @@ export function createForestRenderer({
       const left = Number(item.x || 0) * camera.cellSize;
       const top = Number(item.y || 0) * camera.cellSize;
       const label = item.id || item.assetId;
-      const { image, glyph } = resolveVisual(asset);
+      const { image } = resolveVisual(asset);
 
       // アセット本来のマス数(gridWidth/gridHeight)より広い範囲に敷く場合は
       // 1枚の画像を引き伸ばすのではなく、タイルとして繰り返し敷き詰める。
@@ -193,34 +176,6 @@ export function createForestRenderer({
         `width:${width}px`,
         `height:${height}px`
       ];
-
-      if (shouldTile && (asset?.placeholderColor || glyph)) {
-        // 絵文字1文字をタイルとして敷き詰めるのは見た目が破綻するため、
-        // 代わりにベタ塗りの色で代用する(本物の画像が揃ったら自動でこの分岐を通らなくなる)。
-        styleParts.push(`background-color:${asset?.placeholderColor || '#cfe8b8'}`);
-        return `
-          <div class="forest-node forest-node--terrain forest-node--${escapeHtml(item.type || 'terrain')}"
-               data-terrain-id="${escapeHtml(item.id)}"
-               data-layer="${escapeHtml(item.layer || 'terrain')}"
-               title="${escapeHtml(label)}"
-               style="${styleParts.join(';')}">
-          </div>
-        `;
-      }
-
-      if (!shouldTile && glyph) {
-        // 池・橋のような単体スプライト相当のものは、中央に絵文字を1つ出すだけでよい
-        const fontSize = Math.max(16, Math.round(Math.min(width, height) * 0.6));
-        return `
-          <div class="forest-node forest-node--terrain forest-node--glyph forest-node--${escapeHtml(item.type || 'terrain')}"
-               data-terrain-id="${escapeHtml(item.id)}"
-               data-layer="${escapeHtml(item.layer || 'terrain')}"
-               title="${escapeHtml(label)}"
-               style="${styleParts.join(';')}">
-            <span class="forest-node__glyph" style="font-size:${fontSize}px;line-height:${height}px;">${escapeHtml(glyph)}</span>
-          </div>
-        `;
-      }
 
       if (image) styleParts.push(`background-image:url('${image}')`);
       if (shouldTile) {
@@ -241,45 +196,85 @@ export function createForestRenderer({
     }).join('');
   }
 
+
+  let placedNodesMap = new Map();
+
   function renderPlacedAssets(state) {
+    if (!layers.assets) return;
     const placedAssets = Array.isArray(state?.placedAssets) ? state.placedAssets : [];
     const progressPercent = computeProgressPercent(state);
-    return placedAssets.map((item, index) => {
+    const currentPlacedIds = new Set();
+
+    placedAssets.forEach((item, index) => {
+      const placedId = item.placedId || `placed-${index}`;
+      currentPlacedIds.add(placedId);
+      
       const asset = assetById.get(item.assetId) || null;
       const isSymbolTree = Boolean(item.isSymbolTree) || item.spotId === 'symbolTreeSpot';
       const scale = isSymbolTree ? symbolTreeScale(progressPercent) : 1;
       const pos = assetPosition(item, asset, camera.cellSize, scale);
-      const { image, glyph, color } = resolveVisual(asset);
-      return makeNodeHtml({
-        id: `placed-${index}`,
-        title: `${asset?.name || item.assetId || 'asset'}`,
-        image,
-        glyph,
-        color,
-        className: `forest-node--asset forest-node--${escapeHtml(asset?.type || 'unknown')}${isSymbolTree ? ' forest-node--symbol-tree' : ''}`,
-        left: pos.left,
-        top: pos.top,
-        width: pos.width,
-        height: pos.height,
-        layer: asset?.layer || 'asset',
-        extraData: `data-placed-id="${escapeHtml(item.placedId || '')}" data-asset-id="${escapeHtml(item.assetId)}"`,
-        label: asset?.name || item.assetId
-      });
-    }).join('');
+      const { image } = resolveVisual(asset);
+      const className = `forest-node forest-node--asset forest-node--${escapeHtml(asset?.type || 'unknown')}${isSymbolTree ? ' forest-node--symbol-tree' : ''}`;
+      
+      let el = placedNodesMap.get(placedId);
+      if (!el) {
+        el = document.createElement('div');
+        layers.assets.appendChild(el);
+        placedNodesMap.set(placedId, el);
+      }
+      
+      if (el.className !== className) el.className = className;
+      el.dataset.id = `placed-${index}`;
+      el.dataset.layer = escapeHtml(asset?.layer || 'asset');
+      el.title = escapeHtml(asset?.name || item.assetId || 'asset');
+      el.dataset.placedId = escapeHtml(item.placedId || '');
+      el.dataset.assetId = escapeHtml(item.assetId);
+
+      const labelText = asset?.name || item.assetId;
+      if (!el.firstChild) {
+        const labelDiv = document.createElement('div');
+        labelDiv.className = 'forest-node__label';
+        labelDiv.textContent = labelText;
+        el.appendChild(labelDiv);
+      } else {
+        if (el.firstChild.textContent !== labelText) {
+          el.firstChild.textContent = labelText;
+        }
+      }
+
+      el.style.left = `${pos.left}px`;
+      el.style.top = `${pos.top}px`;
+      el.style.width = `${pos.width}px`;
+      el.style.height = `${pos.height}px`;
+      
+      if (image) {
+        el.style.backgroundImage = `url('${image}')`;
+        el.style.backgroundRepeat = 'no-repeat';
+        el.style.backgroundSize = 'contain';
+      } else {
+        el.style.backgroundImage = '';
+      }
+    });
+
+    for (const [placedId, el] of placedNodesMap.entries()) {
+      if (!currentPlacedIds.has(placedId)) {
+        el.remove();
+        placedNodesMap.delete(placedId);
+      }
+    }
   }
+
 
   function renderAnimals(state) {
     const animals = Array.isArray(state?.animals) ? state.animals : [];
     return animals.map((animal) => {
       const asset = assetById.get(animal.assetId) || null;
       const pos = assetPosition(animal, asset, camera.cellSize);
-      const { image, glyph, color } = resolveVisual(asset);
+      const { image } = resolveVisual(asset);
       return makeNodeHtml({
         id: animal.id,
         title: `${asset?.name || animal.assetId || 'animal'}`,
         image,
-        glyph,
-        color,
         className: `forest-node--animal forest-node--${escapeHtml(asset?.type || 'animal')} forest-node--dir-${escapeHtml(animal.direction || 'right')}`,
         left: pos.left,
         top: pos.top,
@@ -338,10 +333,8 @@ export function createForestRenderer({
       parts.push(`<span class="palette-tag">${escapeHtml(PALETTE_CATEGORY_LABELS[category] || category)}</span>`);
 
       parts.push(...usable.map(({ asset, isOwned }) => {
-        const { image, glyph, color } = resolveVisual(asset);
-        const thumb = glyph
-          ? `<span class="asset-pill__glyph">${escapeHtml(glyph)}</span>`
-          : `<span class="asset-pill__thumb" style="background-color:${color || '#dcefc9'};background-image:url('${image}')"></span>`;
+        const { image } = resolveVisual(asset);
+        const thumb = `<span class="asset-pill__thumb" style="background-image:url('${image}')"></span>`;
         return `
           <button class="asset-card ${isOwned ? 'is-owned' : ''}"
                   data-select-asset="${escapeHtml(asset.id)}"
@@ -398,10 +391,8 @@ export function createForestRenderer({
         const canBuy = unlocked && points >= price;
         const isPlacing = selectedAssetId === item.assetId;
         const asset = assetById.get(item.assetId) || null;
-        const { image, glyph, color } = resolveVisual(asset);
-        const icon = glyph
-          ? `<div class="shop-card__icon shop-card__icon--glyph"><span>${escapeHtml(glyph)}</span></div>`
-          : `<div class="shop-card__icon" style="background-color:${color || '#dcefc9'};background-image:url('${image}')"></div>`;
+        const { image } = resolveVisual(asset);
+        const icon = `<div class="shop-card__icon" style="background-image:url('${image}')"></div>`;
         return `
           <div class="shop-carousel-item ${qty > 0 ? 'is-owned' : ''} ${unlocked ? '' : 'is-locked'} ${isPlacing ? 'is-placing' : ''}"
                data-shop-item
@@ -716,7 +707,7 @@ export function createForestRenderer({
     const signature = `${progressPercent}|${placedAssets.map((p) => `${p.placedId}:${p.assetId}:${p.x}:${p.y}`).join(',')}`;
     if (signature === lastPlacedSignature) return;
     lastPlacedSignature = signature;
-    layers.assets.innerHTML = renderPlacedAssets(state);
+    renderPlacedAssets(state);
   }
 
   // カメラのパン/ズームだけを反映する軽量パス。

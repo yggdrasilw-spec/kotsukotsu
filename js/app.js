@@ -10,6 +10,8 @@ import { AudioManager } from './audio.js';
 import { getSeasonLabel } from './season.js';
 import { ApiClient } from './api-client.js';
 import { ClassSync } from './class-sync.js';
+import { FirebaseClient } from './firebase-client.js';
+import { FirebaseSync } from './firebase-sync.js';
 import { initShopCarousels } from './shop-carousel.js';
 
 function byId(id) {
@@ -173,6 +175,35 @@ async function bootstrap() {
     apiClient, core, onSync: () => refresh(),
     onPlaceFailed: () => toast('うまく置けなかったみたい。もう一度おいてみてね')
   });
+
+  const firebaseClient = new FirebaseClient();
+  const firebaseSync = new FirebaseSync({
+    firebaseClient,
+    core,
+    onSync: () => refresh(),
+    onPlaceFailed: () => toast('うまく置けなかったみたい。もう一度おいてみてね'),
+    onThanksReceived: (thx) => {
+      const host = byId('thanksReceivedHost');
+      const fromEl = byId('thanksReceivedFrom');
+      const msgEl = byId('thanksReceivedMsg');
+      if (host && fromEl && msgEl) {
+        fromEl.textContent = `${thx.fromLabel || 'おともだち'} さんから`;
+        msgEl.textContent = thx.message || 'いつもありがとう！';
+        host.style.display = 'flex';
+        audio.playThanks();
+      }
+    },
+    onGoalApproved: (approvedGoals) => {
+      toast(`先生が「${approvedGoals[0]?.goalTitle || '目標'}」を承認してくれました！ +20ポイント`);
+      audio.chime();
+      refresh();
+    }
+  });
+
+  if (firebaseSync.isConfigured()) {
+    firebaseSync.startListening();
+  }
+
   // 「だれが置いたか」の記録用。クラス未接続ならローカルの「わたし」のまま。
   core.setIdentity({ studentId: classSync.info?.studentId || null, nickname: classSync.info?.nickname || 'わたし' });
 
@@ -1017,7 +1048,13 @@ async function bootstrap() {
     onToast: toast,
     onPlace: (placed) => {
       if (!placed) return;
+      audio.playPlace();
       classSync.pushPlaceAsset({
+        placedId: placed.placedId,
+        assetId: placed.assetId, spotId: placed.spotId, x: placed.x, y: placed.y,
+        goalId: placed.goalId, goalTitle: placed.goalTitle
+      });
+      firebaseSync.pushPlaceAsset({
         placedId: placed.placedId,
         assetId: placed.assetId, spotId: placed.spotId, x: placed.x, y: placed.y,
         goalId: placed.goalId, goalTitle: placed.goalTitle
@@ -1346,6 +1383,7 @@ async function bootstrap() {
       if (result.needsApproval) {
         // 承認待ちは「まだ完了ではない」ので、達成演出は承認された時のために取っておく。
         toast('先生の承認をまってね');
+        firebaseSync.pushGoalCompletion({ goalId, goalTitle: core.getGoal(goalId)?.title || '', autoApprove: false });
         refresh();
         return;
       }
@@ -1353,13 +1391,102 @@ async function bootstrap() {
       // 達成の瞬間が一番気持ちいいべきなので、テキストのトーストだけでなく
       // カードのポップ・パーティクル・上昇アルペジオを重ねる。
       toast(`達成！ +${result.pointsAwarded}ポイント`);
-      if (core.getState().settings?.sfx) audio.chime();
+      audio.chime();
+      firebaseSync.pushGoalCompletion({ goalId, goalTitle: core.getGoal(goalId)?.title || '', autoApprove: true });
       const card = completeBtn.closest('.goal-card');
       card?.classList.add('goal-card--celebrate');
       spawnCelebration(completeBtn, result.pointsAwarded);
       pendingStatPulse = true;
       // カードが一瞬"できた!"の表情を見せてから、通常の再描画(達成済み表示)に切り替える。
       window.setTimeout(refresh, 420);
+      return;
+    }
+
+    // 目標プリセットスタンプのワンタップ登録
+    const presetBtn = event.target.closest?.('.goal-preset-btn');
+    if (presetBtn) {
+      const title = presetBtn.dataset.preset;
+      if (title) {
+        const result = core.createGoal(title, 1);
+        if (result.ok) {
+          toast(`「${title}」を追加しました！`);
+          audio.tone(587.33, 0, 0.15, 0.08); // D5
+          classSync.pushCreateGoal({ title, targetCount: 1 });
+          refresh();
+        } else {
+          toast('これ以上目標は作れません');
+        }
+      }
+      return;
+    }
+
+    // サウンドON/OFFトグル
+    const soundBtn = event.target.closest?.('#soundToggle');
+    if (soundBtn) {
+      audio.setEnabled(!audio.enabled);
+      soundBtn.textContent = audio.enabled ? '🔊 おと' : '🔇 おとOFF';
+      toast(audio.enabled ? 'おとをONにしました' : 'おとをOFFにしました');
+      return;
+    }
+
+    // BGM（そよ風・小鳥環境音）トグル
+    const bgmBtn = event.target.closest?.('#bgmToggle');
+    if (bgmBtn) {
+      audio.setBgmEnabled(!audio.bgmEnabled);
+      bgmBtn.textContent = audio.bgmEnabled ? '🍃 そよ風ON' : '🍃 そよ風';
+      toast(audio.bgmEnabled ? '森のそよ風をはじめました' : 'そよ風をとめました');
+      return;
+    }
+
+    // ありがとう受信ポップアップ閉じる
+    const thanksCloseBtn = event.target.closest?.('#thanksReceivedClose');
+    if (thanksCloseBtn) {
+      const host = byId('thanksReceivedHost');
+      if (host) host.style.display = 'none';
+      return;
+    }
+
+    // Firebase設定モーダル
+    const fbBtn = event.target.closest?.('#firebaseSettingsBtn');
+    if (fbBtn) {
+      const modal = byId('firebaseModal');
+      const apiKeyIn = byId('fbApiKeyInput');
+      const projIn = byId('fbProjectIdInput');
+      const appIn = byId('fbAppIdInput');
+      if (modal) {
+        if (firebaseClient.config) {
+          if (apiKeyIn) apiKeyIn.value = firebaseClient.config.apiKey || '';
+          if (projIn) projIn.value = firebaseClient.config.projectId || '';
+          if (appIn) appIn.value = firebaseClient.config.appId || '';
+        }
+        modal.style.display = 'flex';
+      }
+      return;
+    }
+
+    const fbCloseBtn = event.target.closest?.('#firebaseModalClose') || event.target.closest?.('#firebaseBackdrop');
+    if (fbCloseBtn) {
+      const modal = byId('firebaseModal');
+      if (modal) modal.style.display = 'none';
+      return;
+    }
+
+    const fbSaveBtn = event.target.closest?.('#fbSaveBtn');
+    if (fbSaveBtn) {
+      const apiKey = byId('fbApiKeyInput')?.value?.trim();
+      const projectId = byId('fbProjectIdInput')?.value?.trim();
+      const appId = byId('fbAppIdInput')?.value?.trim();
+      if (apiKey && projectId) {
+        firebaseClient.saveConfig({ apiKey, projectId, appId });
+        toast('Firebase設定を保存しました！');
+        if (firebaseSync.isConfigured()) {
+          firebaseSync.startListening();
+        }
+      } else {
+        toast('API Key と Project ID を入力してください');
+      }
+      const modal = byId('firebaseModal');
+      if (modal) modal.style.display = 'none';
       return;
     }
 

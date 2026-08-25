@@ -10,21 +10,28 @@
   <div id="app" class="app-shell">
     <header class="topbar">
       <div class="brand">
-        <div class="brand__title">コツコツの森</div>
-        <div class="brand__sub"><ruby>森<rt>もり</rt></ruby>をコツコツ<ruby>育<rt>そだ</rt></ruby>てよう</div>
+        <div class="brand__icon">🌲</div>
+        <div>
+          <div class="brand__title">コツコツの森</div>
+          <div class="brand__sub"><ruby>森<rt>もり</rt></ruby>をコツコツ<ruby>育<rt>そだ</rt></ruby>てよう</div>
+        </div>
       </div>
       <div class="topbar__stats">
         <span class="topbar__progress" title="森の進み具合">
+          <span class="topbar__progress-label"><ruby>森<rt>もり</rt></ruby>の<ruby>成長<rt>せいちょう</rt></ruby></span>
           <span class="topbar__progress-track"><span id="progressBarFill" class="topbar__progress-fill"></span></span>
           <strong id="progressPercentValue">0%</strong>
         </span>
-        <span><ruby>所持<rt>しょじ</rt></ruby> <strong id="personalValue">0</strong></span>
-        <span><ruby>季節<rt>きせつ</rt></ruby> <strong id="seasonValue">spring</strong></span>
+        <span class="stat-pill">🪙 <ruby>所持<rt>しょじ</rt></ruby> <strong id="personalValue">0</strong> P</span>
+        <span class="stat-pill">🌸 <ruby>季節<rt>きせつ</rt></ruby> <strong id="seasonValue">春</strong></span>
       </div>
       <div class="topbar__actions">
+        <button id="soundToggle" class="btn btn--ghost btn--small" type="button" title="サウンドのON/OFF">🔊 おと</button>
+        <button id="bgmToggle" class="btn btn--ghost btn--small" type="button" title="森の環境音BGM">🍃 そよ風</button>
         <button id="furiganaToggle" class="btn btn--ghost btn--small" type="button" title="かん字のよみがなを表示/非表示">ふりがな</button>
         <button id="simpleModeToggle" class="btn btn--ghost btn--small" type="button" title="ひとつずつ表示にきりかえる">かんたん表示</button>
-        <a href="./teacher.html" class="link-quiet"><ruby>先生用<rt>せんせいよう</rt></ruby>ページ</a>
+        <button id="firebaseSettingsBtn" class="btn btn--ghost btn--small" type="button" title="リアルタイム連携設定">🔥 リアルタイム</button>
+        <a href="./teacher.html" class="link-quiet"><ruby>先生用<rt>せんせいよう</rt></ruby></a>
       </div>
     </header>
 
@@ -40,28 +47,48 @@
     <div class="main-layout">
       <aside class="sidebar sidebar--left">
         <section class="panel" data-tab="goals">
-          <h2><ruby>今日<rt>きょう</rt></ruby>の<ruby>目標<rt>もくひょう</rt></ruby></h2>
+          <div class="panel-header">
+            <h2>🎯 <ruby>今日<rt>きょう</rt></ruby>の<ruby>目標<rt>もくひょう</rt></ruby></h2>
+          </div>
+          <!-- かんたん目標スタンプ（低学年向けクイック入力） -->
+          <div class="goal-presets">
+            <span class="goal-presets__title">よくつかう<ruby>目標<rt>もくひょう</rt></ruby>:</span>
+            <div class="goal-presets__list">
+              <button type="button" class="goal-preset-btn" data-preset="本を10ページよむ">📖 読書</button>
+              <button type="button" class="goal-preset-btn" data-preset="計算ドリルを1ページやる">✏️ 算数</button>
+              <button type="button" class="goal-preset-btn" data-preset="漢字を3つおぼえる">📝 漢字</button>
+              <button type="button" class="goal-preset-btn" data-preset="なわとびを100回とぶ">🏃 うんどう</button>
+              <button type="button" class="goal-preset-btn" data-preset="つくえの上をかたづける">🧹 おそうじ</button>
+            </div>
+          </div>
           <div id="goalPanel" class="goal-panel"></div>
         </section>
 
         <section class="panel" data-tab="thanks">
-          <h2>ありがとう</h2>
+          <div class="panel-header">
+            <h2>🧡 ありがとう</h2>
+          </div>
           <form id="thanksForm" class="goal-form" style="display:none;">
             <select id="thanksNameSelect" required>
               <option value="">だれに送る？</option>
             </select>
-            <button type="submit" class="btn">ありがとうを<ruby>送<rt>おく</rt></ruby>る</button>
+            <input type="text" id="thanksMsgInput" placeholder="ひとこと（例: てつだってくれてありがとう！）" maxlength="40" />
+            <button type="submit" class="btn btn--accent">ありがとうを<ruby>送<rt>おく</rt></ruby>る</button>
           </form>
           <p id="thanksLockedMessage" class="muted">🔒 クラスのみんなとつながると<ruby>使<rt>つか</rt></ruby>えるようになるよ。<ruby>先生<rt>せんせい</rt></ruby>に「クラス<ruby>連携<rt>れんけい</rt></ruby>」を<ruby>聞<rt>き</rt></ruby>いてみよう。</p>
         </section>
 
         <section class="panel" data-tab="classpower">
-          <h2>クラスのちから</h2>
+          <div class="panel-header">
+            <h2>🌟 クラスのちから</h2>
+          </div>
           <div id="classPowerPanel" class="class-power-panel"></div>
         </section>
 
         <section class="panel" data-tab="badges">
-          <h2>バッジ</h2>
+          <div class="panel-header">
+            <h2>🏅 バッジ</h2>
+          </div>
           <div id="badgePanel" class="badge-panel"></div>
         </section>
       </aside>
@@ -77,11 +104,22 @@
           <div id="seasonOverlay" class="season-overlay" data-season="spring"></div>
           <div id="effectOverlay" class="effect-overlay"></div>
           <div id="milestoneHost" class="milestone-host"></div>
+          
+          <!-- ありがとう受信ポップアップ -->
+          <div id="thanksReceivedHost" class="thanks-received-host" style="display:none;">
+            <div class="thanks-received-card">
+              <div class="thanks-received-card__heart">💖</div>
+              <div class="thanks-received-card__title">ありがとうがとどいたよ！</div>
+              <div id="thanksReceivedFrom" class="thanks-received-card__from">—</div>
+              <div id="thanksReceivedMsg" class="thanks-received-card__msg">いつもありがとう！</div>
+              <button id="thanksReceivedClose" class="btn btn--accent btn--small">うれしい！</button>
+            </div>
+          </div>
+
           <div id="placedInfoHost" class="placed-info-host" style="display:none;">
             <div id="placedInfoBackdrop" class="placed-info-backdrop"></div>
             <div class="placed-info-card">
               <button id="placedInfoClose" class="placed-info-card__close" aria-label="とじる">×</button>
-              <div id="placedInfoEmoji" class="placed-info-card__emoji">🌸</div>
               <div id="placedInfoName" class="placed-info-card__name">—</div>
               <dl class="placed-info-card__facts">
                 <div class="placed-info-card__fact">
@@ -169,6 +207,31 @@
             </div>
           </div>
 
+          <!-- Firebase設定モーダル -->
+          <div id="firebaseModal" class="placed-info-host" style="display:none;">
+            <div id="firebaseBackdrop" class="placed-info-backdrop"></div>
+            <div class="placed-info-card firebase-settings-card">
+              <button id="firebaseModalClose" class="placed-info-card__close" aria-label="とじる">×</button>
+              <h3>🔥 Firebase リアルタイム設定</h3>
+              <p class="muted" style="font-size:12px;">Firestore の設定を入力すると、友達とミリ秒単位でリアルタイム同期されます（未入力時はローカル・GASで動作）。</p>
+              <div class="field-row">
+                <label for="fbApiKeyInput">API Key</label>
+                <input type="text" id="fbApiKeyInput" placeholder="AIzaSy..." />
+              </div>
+              <div class="field-row">
+                <label for="fbProjectIdInput">Project ID</label>
+                <input type="text" id="fbProjectIdInput" placeholder="kotsukotsu-forest" />
+              </div>
+              <div class="field-row">
+                <label for="fbAppIdInput">App ID</label>
+                <input type="text" id="fbAppIdInput" placeholder="1:123456789:web:abcdef" />
+              </div>
+              <div class="confirm-card__actions" style="margin-top:16px;">
+                <button id="fbSaveBtn" class="btn btn--accent" type="button">保存して接続</button>
+              </div>
+            </div>
+          </div>
+
           <div class="viewport-controls">
             <button id="btnZoomIn" class="icon-btn" title="ズーム＋" aria-label="ズームイン">＋</button>
             <button id="btnZoomOut" class="icon-btn" title="ズーム−" aria-label="ズームアウト">−</button>
@@ -179,18 +242,20 @@
 
       <aside class="sidebar sidebar--right">
         <section class="panel" data-tab="shop">
-          <h2>ショップ</h2>
+          <div class="panel-header">
+            <h2>🛍️ ショップ</h2>
+          </div>
           <div id="placingIndicator" class="selected-asset" style="display:none;">
             <div id="placingIndicatorName" class="selected-asset__name">—</div>
             <div id="placingIndicatorMeta" class="selected-asset__meta">—</div>
           </div>
-          <div class="selected-asset__hint">ショップで<ruby>買<rt>か</rt></ruby>って、「<ruby>配置<rt>はいち</rt></ruby>する」を<ruby>押<rt>お</rt></ruby>してから、<ruby>森<rt>もり</rt></ruby>をタップしてね。</div>
+          <div class="selected-asset__hint">ショップで<ruby>選<rt>えら</rt></ruby>んで「<ruby>配置<rt>はいち</rt></ruby>する」を<ruby>押<rt>お</rt></ruby>したら、<ruby>森<rt>もり</rt></ruby>をタップしてね。</div>
           <div id="shopPanel" class="shop-panel"></div>
         </section>
       </aside>
     </div>
 
-    <!-- 「かんたん表示」時だけ表示するタブバー。パネルを1つずつに絞って情報量を減らす。 -->
+    <!-- 「かんたん表示」時だけ表示するタブバー -->
     <nav id="panelTabs" class="panel-tabs" style="display:none;">
       <button type="button" class="panel-tabs__btn" data-tab-target="goals">🎯 <ruby>目標<rt>もくひょう</rt></ruby></button>
       <button type="button" class="panel-tabs__btn" data-tab-target="thanks">🧡 ありがとう</button>

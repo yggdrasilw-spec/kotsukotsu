@@ -1,5 +1,6 @@
 import { ApiClient } from './api-client.js';
 import { CONFIG } from './config.js';
+import { FirebaseClient } from './firebase-client.js';
 
 const LOCAL_KEY = 'kokotsu_teacher_info_v1';
 
@@ -335,16 +336,26 @@ async function main() {
     refreshDashboard();
   });
 
+  const firebaseClient = new FirebaseClient();
+
   byId('approvalList').addEventListener('click', async (event) => {
     const approveBtn = event.target.closest?.('[data-approve]');
     if (approveBtn) {
-      await apiClient.approveGoal({ classCode: info.classCode, logId: approveBtn.dataset.approve });
+      const logId = approveBtn.dataset.approve;
+      await apiClient.approveGoal({ classCode: info.classCode, logId });
+      if (firebaseClient.isReady()) {
+        await firebaseClient.resolveGoalApproval({ classCode: info.classCode, logId, approve: true });
+      }
       refreshDashboard();
       return;
     }
     const rejectBtn = event.target.closest?.('[data-reject]');
     if (rejectBtn) {
-      await apiClient.rejectGoal({ classCode: info.classCode, logId: rejectBtn.dataset.reject });
+      const logId = rejectBtn.dataset.reject;
+      await apiClient.rejectGoal({ classCode: info.classCode, logId });
+      if (firebaseClient.isReady()) {
+        await firebaseClient.resolveGoalApproval({ classCode: info.classCode, logId, approve: false });
+      }
       refreshDashboard();
     }
   });

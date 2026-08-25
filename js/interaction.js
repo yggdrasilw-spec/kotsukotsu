@@ -123,8 +123,13 @@ export class InteractionController {
     const target = event.target.closest?.('[data-placed-id], [data-animal-id]');
 
     if (target?.dataset?.animalId) {
+      target.classList.remove('animal-hop');
+      void target.offsetWidth;
+      target.classList.add('animal-hop');
+      window.setTimeout(() => target.classList.remove('animal-hop'), 500);
+
       const result = this.core.clickAnimal(target.dataset.animalId);
-      this.onToast(result.isNewDiscovery ? `はじめて見つけた！ +${result.pointsAwarded}ポイント` : '動物が反応したよ');
+      this.onToast(result.isNewDiscovery ? `はじめて見つけた！ +${result.pointsAwarded}ポイント` : '動物がぴょこんとよろこんだよ！✨');
       this.onDirty();
       return;
     }

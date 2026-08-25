@@ -34,8 +34,7 @@
                 "grass_03"
             ],
             "description": "森の基本地面",
-            "placeable": false,
-            "placeholderColor": "#cdeab2"
+            "placeable": false
         },
         {
             "id": "path_01",
@@ -65,8 +64,7 @@
                 "path_03"
             ],
             "description": "森の小道",
-            "placeable": false,
-            "placeholderColor": "#e3c99a"
+            "placeable": false
         },
         {
             "id": "flower_small_01",
@@ -96,8 +94,7 @@
                 "flower_small_03"
             ],
             "description": "1マス内に複数置ける小花",
-            "placeable": true,
-            "emoji": "🌸"
+            "placeable": true
         },
         {
             "id": "flower_patch_01",
@@ -127,8 +124,7 @@
                 "flower_patch_03"
             ],
             "description": "花のかたまり",
-            "placeable": true,
-            "emoji": "💐"
+            "placeable": true
         },
         {
             "id": "mushroom_small_01",
@@ -158,8 +154,7 @@
                 "mushroom_small_03"
             ],
             "description": "木陰に置く小きのこ",
-            "placeable": true,
-            "emoji": "🍄"
+            "placeable": true
         },
         {
             "id": "mushroom_patch_01",
@@ -189,8 +184,7 @@
                 "mushroom_patch_03"
             ],
             "description": "複数のきのこがまとまった素材",
-            "placeable": true,
-            "emoji": "🍄"
+            "placeable": true
         },
         {
             "id": "tree_oak_01",
@@ -220,8 +214,7 @@
                 "tree_oak_03"
             ],
             "description": "森の主役になる標準木",
-            "placeable": false,
-            "emoji": "🌳"
+            "placeable": false
         },
         {
             "id": "tree_birch_01",
@@ -251,8 +244,7 @@
                 "tree_birch_03"
             ],
             "description": "明るい雰囲気の木",
-            "placeable": false,
-            "emoji": "🌳"
+            "placeable": false
         },
         {
             "id": "tree_pine_01",
@@ -282,8 +274,7 @@
                 "tree_pine_03"
             ],
             "description": "大きな存在感のある木",
-            "placeable": false,
-            "emoji": "🌲"
+            "placeable": false
         },
         {
             "id": "tree_symbol_01",
@@ -310,8 +301,7 @@
             },
             "variants": [],
             "description": "森がはじまった日に植える苗木。進み具合に合わせて少しずつ育ち、最後には森でいちばん大きな木になる",
-            "placeable": false,
-            "emoji": "🌳"
+            "placeable": false
         },
         {
             "id": "stump_01",
@@ -341,8 +331,7 @@
                 "stump_03"
             ],
             "description": "木の切り株",
-            "placeable": false,
-            "emoji": "🪵"
+            "placeable": false
         },
         {
             "id": "rock_small_01",
@@ -372,8 +361,7 @@
                 "rock_small_03"
             ],
             "description": "小さな岩",
-            "placeable": false,
-            "emoji": "🪨"
+            "placeable": false
         },
         {
             "id": "rock_medium_01",
@@ -403,8 +391,7 @@
                 "rock_medium_03"
             ],
             "description": "森のアクセントになる岩",
-            "placeable": false,
-            "emoji": "🪨"
+            "placeable": false
         },
         {
             "id": "pond_medium_01",
@@ -434,8 +421,7 @@
                 "pond_medium_03"
             ],
             "description": "森の水辺",
-            "placeable": false,
-            "emoji": "🌊"
+            "placeable": false
         },
         {
             "id": "bridge_medium_01",
@@ -465,8 +451,7 @@
                 "bridge_medium_03"
             ],
             "description": "池や川にかかる橋",
-            "placeable": false,
-            "emoji": "🌉"
+            "placeable": false
         },
         {
             "id": "bird_small_01",
@@ -496,8 +481,7 @@
                 "bird_small_03"
             ],
             "description": "枝や空に現れる小鳥",
-            "placeable": true,
-            "emoji": "🐦"
+            "placeable": true
         },
         {
             "id": "squirrel_01",
@@ -527,8 +511,7 @@
                 "squirrel_03"
             ],
             "description": "森に現れるかわいいリス",
-            "placeable": true,
-            "emoji": "🐿️"
+            "placeable": true
         },
         {
             "id": "rabbit_01",
@@ -558,8 +541,7 @@
                 "rabbit_03"
             ],
             "description": "地面を跳ねるうさぎ",
-            "placeable": true,
-            "emoji": "🐰"
+            "placeable": true
         },
         {
             "id": "fish_small_01",
@@ -589,8 +571,7 @@
                 "fish_small_03"
             ],
             "description": "池の中を泳ぐ小魚",
-            "placeable": true,
-            "emoji": "🐟"
+            "placeable": true
         },
         {
             "id": "frog_01",
@@ -620,8 +601,7 @@
                 "frog_03"
             ],
             "description": "池の近くにいるカエル",
-            "placeable": true,
-            "emoji": "🐸"
+            "placeable": true
         },
         {
             "id": "acorn_01",
@@ -651,8 +631,7 @@
                 "acorn_03"
             ],
             "description": "木の実",
-            "placeable": true,
-            "emoji": "🌰"
+            "placeable": true
         },
         {
             "id": "berry_01",
@@ -682,8 +661,7 @@
                 "berry_03"
             ],
             "description": "小さな木の実",
-            "placeable": true,
-            "emoji": "🍓"
+            "placeable": true
         },
         {
             "id": "leaf_01",
@@ -713,8 +691,7 @@
                 "leaf_03"
             ],
             "description": "風で舞う葉っぱ",
-            "placeable": true,
-            "emoji": "🍃"
+            "placeable": true
         },
         {
             "id": "sparkle_small_01",
@@ -744,8 +721,7 @@
                 "sparkle_small_03"
             ],
             "description": "小さな光の演出",
-            "placeable": true,
-            "emoji": "✨"
+            "placeable": true
         },
         {
             "id": "glow_01",
@@ -775,8 +751,7 @@
                 "glow_03"
             ],
             "description": "木漏れ日や光の演出",
-            "placeable": true,
-            "emoji": "🌟"
+            "placeable": true
         },
         {
             "id": "rainbow_01",
@@ -805,8 +780,7 @@
                 "rainbow_02"
             ],
             "description": "特別演出用の大きな虹",
-            "placeable": true,
-            "emoji": "🌈"
+            "placeable": true
         },
         {
             "id": "bee_01",
@@ -833,8 +807,7 @@
             },
             "variants": [],
             "description": "花畑を飛びまわるみつばち",
-            "placeable": true,
-            "emoji": "🐝"
+            "placeable": true
         },
         {
             "id": "butterfly_01",
@@ -861,8 +834,7 @@
             },
             "variants": [],
             "description": "花畑をひらひら飛ぶちょうちょ",
-            "placeable": true,
-            "emoji": "🦋"
+            "placeable": true
         },
         {
             "id": "dragonfly_01",
@@ -889,8 +861,7 @@
             },
             "variants": [],
             "description": "すいすい飛ぶとんぼ",
-            "placeable": true,
-            "emoji": "🪰"
+            "placeable": true
         },
         {
             "id": "pinecone_01",
@@ -917,8 +888,7 @@
             },
             "variants": [],
             "description": "地面に落ちたまつぼっくり",
-            "placeable": true,
-            "emoji": "🌰"
+            "placeable": true
         }
     ]
 }
