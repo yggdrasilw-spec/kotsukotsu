@@ -1,15 +1,16 @@
-import { CONFIG } from './config.js';
-import { createForestCoreFromData } from './core-runtime.js';
-import { Camera } from './camera.js';
-import { PlacementManager } from './placement.js';
-import { createForestRenderer } from './render.js';
-import { InteractionController } from './interaction.js';
-import { loadForestBundle } from './data-loader.js';
-import { BadgeManager } from './badge.js';
-import { AudioManager } from './audio.js';
-import { getSeasonLabel } from './season.js';
-import { FirebaseClient } from './firebase-client.js';
-import { FirebaseSync } from './firebase-sync.js';
+import { createGrowthView } from './growth-view.js?v=child-20260910e';
+import { CONFIG } from './config.js?v=child-20260910e';
+import { createForestCoreFromData } from './core-runtime.js?v=child-20260910e';
+import { Camera } from './camera.js?v=child-20260910e';
+import { PlacementManager } from './placement.js?v=child-20260910e';
+import { createForestRenderer } from './render.js?v=child-20260910e';
+import { InteractionController } from './interaction.js?v=child-20260910e';
+import { loadForestBundle } from './data-loader.js?v=child-20260910e';
+import { BadgeManager } from './badge.js?v=child-20260910e';
+import { AudioManager } from './audio.js?v=child-20260910e';
+import { getSeasonLabel } from './season.js?v=child-20260910e';
+import { FirebaseClient } from './firebase-client.js?v=child-20260910e';
+import { FirebaseSync } from './firebase-sync.js?v=child-20260910e';
 
 function byId(id) {
   return document.getElementById(id);
@@ -63,6 +64,7 @@ function setText(id, text) {
 
 // 「クリア」ボタンの位置や指定座標から、+ポイントと星をふわっと飛ばす。
 function spawnCelebration(anchor, points) {
+  if (byId('app')?.classList.contains('calm-mode') || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   let originX = window.innerWidth / 2;
   let originY = window.innerHeight / 2;
 
@@ -178,11 +180,12 @@ async function bootstrap() {
   core.setBadges(badges);
   core.setShopItems(shopItems);
 
+  let uiReady = false;
   const firebaseClient = new FirebaseClient();
   const firebaseSync = new FirebaseSync({
     firebaseClient,
     core,
-    onSync: () => refresh(),
+    onSync: () => { if (uiReady) refresh(); },
     onPlaceFailed: () => toast('うまく置けなかったみたい。もう一度おいてみてね'),
     onThanksReceived: (thx) => {
       const host = byId('thanksReceivedHost');
@@ -196,8 +199,9 @@ async function bootstrap() {
       }
     },
     onGoalApproved: (approvedGoals) => {
-      toast(`先生が「${approvedGoals[0]?.goalTitle || '目標'}」を承認してくれました！ +20ポイント`);
-      audio.chime();
+      if (!uiReady) return;
+      growthView.celebrate(null, 'せんせいが みてくれたよ！ おはなが さいたね');
+      if (core.getState().settings?.sfx) audio.chime();
       refresh();
     }
   });
@@ -258,23 +262,26 @@ async function bootstrap() {
     const worldWidth = map.width * camera.cellSize;
     const worldHeight = map.height * camera.cellSize;
     const fit = Math.min(camera.viewportWidth / worldWidth, camera.viewportHeight / worldHeight);
-    return Math.max(0.15, fit * 0.94); // 少し余白を残す
+    return Math.max(0.04, fit * 0.94); // 少し余白を残す
   }
   function applyDynamicMinZoom() {
     camera.minZoom = Math.min(CONFIG.minZoom, computeFitZoom());
   }
   applyDynamicMinZoom();
 
-  if (Number.isFinite(savedSettings.cameraX) && Number.isFinite(savedSettings.cameraY)) {
+  if (savedSettings.gardenViewVersion === 4 && Number.isFinite(savedSettings.cameraX) && Number.isFinite(savedSettings.cameraY)) {
     camera.x = savedSettings.cameraX;
     camera.y = savedSettings.cameraY;
     camera.zoom = savedSettings.zoom || camera.zoom;
     camera.clampToBounds();
   } else {
-    camera.zoom = savedSettings.zoom || camera.zoom;
-    camera.centerOnCell(map.width / 2, map.height / 2);
+    camera.zoom = Math.min(camera.viewportWidth / (32 * 112), camera.viewportHeight / (23 * 112));
+    camera.centerOnCell(map.width / 2, map.height / 2 - 1);
+    core.state.settings.gardenViewVersion = 4;
   }
 
+  Object.assign(core.state.settings, { cameraX: camera.x, cameraY: camera.y, zoom: camera.zoom });
+  core.persist();
   let lastCameraSnapshot = JSON.stringify({
     x: Math.round(camera.x * 1000) / 1000,
     y: Math.round(camera.y * 1000) / 1000,
@@ -310,6 +317,7 @@ async function bootstrap() {
   // マウスドラッグ/ホイールでのズームには使わない、演出専用のなめらかなカメラ移動。
   // { x, y }は移動先の左上ワールド座標、zoomは目標倍率。どちらも省略可。
   function animateCamera({ x, y, zoom } = {}, duration = 650) {
+    if (core.state.settings?.calmMode || matchMedia('(prefers-reduced-motion: reduce)').matches) duration = 0;
     return new Promise((resolve) => {
       const startX = camera.x;
       const startY = camera.y;
@@ -319,7 +327,7 @@ async function bootstrap() {
       const endY = y == null ? startY : y;
       const startTime = performance.now();
       function step(now) {
-        const t = Math.min(1, (now - startTime) / duration);
+        const t = duration <= 0 ? 1 : Math.min(1, (now - startTime) / duration);
         const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
         camera.zoom = startZoom + (endZoom - startZoom) * eased;
         camera.x = startX + (endX - startX) * eased;
@@ -354,7 +362,9 @@ async function bootstrap() {
   }
 
   let logExpanded = false;
+  const growthView = createGrowthView({ core, camera, viewport: viewportEl });
   let pendingStatPulse = false;
+  const pendingGoals = new Set();
   let confirmRemoveGoalId = null;
   let confirmRemoveTimer = null;
 
@@ -382,6 +392,7 @@ async function bootstrap() {
     };
 
     const view = renderer.render(renderState);
+    growthView.update();
     setHTML('statusPanel', view.statusHtml);
     setHTML('eventLog', view.logHtml);
     setHTML('badgePanel', view.badgeHtml);
@@ -427,6 +438,10 @@ async function bootstrap() {
     }
 
     setHTML('goalPanel', view.goalHtml);
+    const picker = byId('goalPicker');
+    if (picker && !goalsView.length) picker.open = true;
+    if (picker && goalsView.length) picker.open = false;
+    for (const button of document.querySelectorAll('[data-goal-complete]')) { if (pendingGoals.has(button.dataset.goalComplete)) { button.disabled = true; button.textContent = 'とどけているよ…'; } }
     setHTML('classPowerPanel', view.classPowerHtml);
     setText('progressPercentValue', `${Math.floor(core.getProgressPercent())}%`);
     const progressFillEl = byId('progressBarFill');
@@ -482,7 +497,7 @@ async function bootstrap() {
     if (!select) return;
     const current = select.value;
     const optionsHtml = ['<option value="">だれに送る？</option>']
-      .concat(classmates.map((name) => `<option value="${name}">${name}さん</option>`));
+      .concat(classmates.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}さん</option>`));
     select.innerHTML = optionsHtml.join('');
     if (classmates.includes(current)) select.value = current;
   }
@@ -929,7 +944,7 @@ async function bootstrap() {
     const prevX = camera.x;
     const prevY = camera.y;
     const prevZoom = camera.zoom;
-    const targetZoom = camera.clampZoom(Math.max(camera.zoom, 1.0) * 1.15);
+    const targetZoom = camera.clampZoom(camera.zoom * 1.1);
 
     let targetPos;
     if (item.focus) {
@@ -942,9 +957,9 @@ async function bootstrap() {
       targetPos = cameraTopLeftToCenterOn(centerWorldX, centerWorldY, targetZoom);
     }
 
-    await animateCamera({ x: targetPos.x, y: targetPos.y, zoom: targetZoom }, 550);
+    // Keep the shared tree and new flowers in view during the celebration.
     const card = showBanner({ ...item, contributorText: item.kind === 'event' ? contributorLabel(item.contributor) : null });
-    if (item.effect) playEffect(item.effect);
+    if (item.effect && !core.state.settings?.calmMode) playEffect(item.effect);
     if (core.getState().settings?.sfx) {
       if (item.kind === 'badge') {
         audio.fanfare();
@@ -958,9 +973,9 @@ async function bootstrap() {
         audio.chime();
       }
     }
-    await wait(2200);
+    await wait(core.state.settings?.calmMode ? 800 : 1200);
     hideBanner(card);
-    await animateCamera({ x: prevX, y: prevY, zoom: prevZoom }, 500);
+    // The child stays in the same place instead of being moved around the map.
   }
 
   async function processMilestoneQueue() {
@@ -981,7 +996,7 @@ async function bootstrap() {
     const summary = core.consumeMilestoneSummary();
     if (!summary) return;
 
-    for (const ev of summary.newEvents || []) {
+    for (const ev of (summary.newEvents || []).slice(-1)) {
       milestoneQueue.push({
         kind: 'event',
         icon: '🌲',
@@ -1019,11 +1034,7 @@ async function bootstrap() {
     if (Array.isArray(summary.autoPlaced) && summary.autoPlaced.length) {
       for (const placedItem of summary.autoPlaced) {
         spawnNames.push(assets.find((a) => a.id === placedItem.assetId)?.name || placedItem.assetId);
-        firebaseSync.pushPlaceAsset({
-          placedId: placedItem.placedId,
-          assetId: placedItem.assetId, spotId: placedItem.spotId, x: placedItem.x, y: placedItem.y,
-          goalId: null, goalTitle: null
-        });
+// Scenery is derived identically on every device; never award placement points for it.
       }
     }
     const categoryText = Array.isArray(summary.newCategories) && summary.newCategories.length
@@ -1082,6 +1093,7 @@ async function bootstrap() {
   }
 
   function playEffect(effectName) {
+    if (core.state.settings?.calmMode || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const el = byId('effectOverlay');
     if (!el || !effectName) return;
     el.removeAttribute('data-effect');
@@ -1209,15 +1221,18 @@ async function bootstrap() {
   function updateClassSyncStatus() {
     const bar = byId('classConnectBar');
     const isConnected = firebaseSync.isConfigured();
-    if (bar) bar.style.display = isConnected ? 'none' : 'flex';
+    if (bar && isConnected) bar.style.display = 'none';
+    byId('joinForestButton').hidden = isConnected;
   }
+
+  bindButton('joinForestButton', () => { const bar = byId('classConnectBar'); bar.style.display = bar.style.display === 'none' ? 'flex' : 'none'; });
 
   // ---- かんたん表示(低学年・支援級向けに、サイドパネルを1枚ずつに絞る) ----
   const TAB_IDS = ['goals', 'thanks', 'classpower', 'badges'];
   let activeTab = TAB_IDS[0];
 
   function applySimpleMode() {
-    const simpleMode = Boolean(core.getState().settings?.simpleMode);
+    const simpleMode = true;
     const shell = byId('app');
     if (shell) shell.classList.toggle('app-shell--simple', simpleMode);
     const toggleBtn = byId('simpleModeToggle');
@@ -1243,7 +1258,7 @@ async function bootstrap() {
   // ---- ふりがな(既定オン。漢字がまだ読めない学年の子でも迷わないように) ----
   function applyFurigana() {
     const state = core.getState();
-    const on = state.settings?.furigana !== false;
+    const on = true;
     const shell = byId('app');
     if (shell) shell.classList.toggle('furigana-on', on);
     const toggleBtn = byId('furiganaToggle');
@@ -1259,6 +1274,15 @@ async function bootstrap() {
   });
 
   applyFurigana();
+  function applyCalmMode() {
+    const calm = Boolean(core.state.settings?.calmMode);
+    byId('app').classList.toggle('calm-mode', calm);
+    byId('calmModeToggle').setAttribute('aria-pressed', String(calm));
+    byId('calmModeToggle').textContent = calm ? '✓ しずかに' : 'しずかに';
+    if (calm) { core.state.settings.sfx = false; core.state.settings.bgm = false; audio.setEnabled(false); audio.setBgmEnabled(false); }
+  }
+  bindButton('calmModeToggle', () => { core.state.settings.calmMode = !core.state.settings.calmMode; applyCalmMode(); core.persist(); });
+  applyCalmMode();
 
   document.addEventListener('click', (event) => {
     const tabBtn = event.target.closest?.('[data-tab-target]');
@@ -1282,7 +1306,7 @@ async function bootstrap() {
       return;
     }
 
-    const fbRes = await firebaseSync.joinClass({ classCode, nickname });
+    const fbRes = await firebaseSync.joinClass({ classCode, nickname }).catch(() => ({ ok: false }));
     if (fbRes.ok) {
       toast(`クラスに入りました（${classCode}）`);
       core.setIdentity({ studentId: fbRes.data.studentId, nickname });
@@ -1390,7 +1414,7 @@ async function bootstrap() {
   });
 
   // ドロワー内アイテムのタップ選択（タップで選んで森をタップして置く）
-  document.addEventListener('click', (event) => {
+  document.addEventListener('click', async (event) => {
     const itemCard = event.target.closest?.('[data-drawer-item]');
     if (!itemCard) return;
     if (dragState.didDrag) {
@@ -1417,12 +1441,14 @@ async function bootstrap() {
 
     // 在庫がなくポイントがある場合は、選択した時点で1個入手して配置モードへ
     if (qty <= 0 && personalPoints >= price) {
-      const buyRes = core.buy(itemId);
+      const buyRes = firebaseSync.isConfigured()
+        ? await firebaseSync.pushBuyItem({ itemId, assetId, itemName: itemCard.dataset.name, price })
+        : core.buy(itemId);
       if (!buyRes.ok) {
         toast('入手できませんでした');
         return;
       }
-      firebaseSync.pushBuyItem({ itemId, assetId, itemName: itemCard.dataset.name, price });
+
       if (core.getState().settings?.sfx) audio.beep(720, 0.05);
     }
 
@@ -1495,7 +1521,7 @@ async function bootstrap() {
     }
   });
 
-  window.addEventListener('pointerup', (event) => {
+  window.addEventListener('pointerup', async (event) => {
     if (!dragState.active) return;
     const wasDragging = dragState.didDrag;
     const item = dragState.item;
@@ -1525,12 +1551,14 @@ async function bootstrap() {
             toast(`ポイントが足りないよ（あと ${item.price - personalPoints} P）`);
             return;
           }
-          const buyRes = core.buy(item.id);
+          const buyRes = firebaseSync.isConfigured()
+            ? await firebaseSync.pushBuyItem({ itemId: item.id, assetId: item.assetId, itemName: item.name, price: item.price })
+            : core.buy(item.id);
           if (!buyRes.ok) {
             toast('入手できませんでした');
             return;
           }
-          firebaseSync.pushBuyItem({ itemId: item.id, assetId: item.assetId, itemName: item.name, price: item.price });
+
         }
 
         // 指定スクリーン座標で配置を実行
@@ -1586,14 +1614,37 @@ async function bootstrap() {
     }
     if (nameSelect) nameSelect.value = '';
     toast(`${result.entry.toName}さんにありがとうを送りました`);
-    firebaseSync.pushThanks({ toName: result.entry.toName, message: '' });
+    firebaseSync.pushThanks({ toName: result.entry.toName, message: byId('thanksMsgInput')?.value.trim() || '' });
+    if (byId('thanksMsgInput')) byId('thanksMsgInput').value = '';
     refresh();
   });
 
-  document.addEventListener('click', (event) => {
+  document.addEventListener('click', async (event) => {
     const completeBtn = event.target.closest?.('[data-goal-complete]');
     if (completeBtn) {
       const goalId = completeBtn.dataset.goalComplete;
+      const origin = completeBtn.getBoundingClientRect();
+      if (firebaseSync.isConfigured()) {
+        if (pendingGoals.has(goalId)) return;
+        pendingGoals.add(goalId);
+        completeBtn.disabled = true;
+        completeBtn.textContent = 'とどけているよ…';
+        const result = await firebaseSync.pushGoalCompletion({ goalId, goalTitle: core.getGoal(goalId)?.title || '', requestId: crypto.randomUUID() });
+        pendingGoals.delete(goalId);
+        if (!result?.ok) {
+          toast(result?.reason === 'already_completed_today' ? 'きょうの「できた！」は とどいているよ' : 'とどかなかったよ。もういちど おしてね');
+          refresh();
+          return;
+        }
+        if (result.entry && !core.state.goalLog.some(e => e.id === result.entry.id)) core.state.goalLog.push(result.entry);
+        if (result.status === 'pending') toast('せんせいに とどけたよ。がんばったね！');
+        else {
+          growthView.celebrate(origin);
+          if (core.state.settings?.sfx) audio.chime();
+        }
+        core.persist(); refresh();
+        return;
+      }
       const result = core.completeGoal(goalId);
       if (!result.ok) {
         toast(result.reason === 'already_completed_today' ? 'きょうはもう達成しています' : 'できませんでした');
@@ -1614,6 +1665,7 @@ async function bootstrap() {
         return;
       }
 
+      growthView.celebrate(origin);
       // 承認不要（即時達成）の場合:
       // ボタン座標を保持
       const btnRect = completeBtn.getBoundingClientRect();
@@ -1694,6 +1746,7 @@ async function bootstrap() {
     // サウンドON/OFFトグル
     const soundBtn = event.target.closest?.('#soundToggle');
     if (soundBtn) {
+      if (core.state.settings.calmMode) { toast('しずかに しているよ'); return; }
       audio.setEnabled(!audio.enabled);
       soundBtn.textContent = audio.enabled ? '🔊 おと' : '🔇 おとOFF';
       toast(audio.enabled ? 'おとをONにしました' : 'おとをOFFにしました');
@@ -1714,50 +1767,6 @@ async function bootstrap() {
     if (thanksCloseBtn) {
       const host = byId('thanksReceivedHost');
       if (host) host.style.display = 'none';
-      return;
-    }
-
-    // Firebase設定モーダル
-    const fbBtn = event.target.closest?.('#firebaseSettingsBtn');
-    if (fbBtn) {
-      const modal = byId('firebaseModal');
-      const apiKeyIn = byId('fbApiKeyInput');
-      const projIn = byId('fbProjectIdInput');
-      const appIn = byId('fbAppIdInput');
-      if (modal) {
-        if (firebaseClient.config) {
-          if (apiKeyIn) apiKeyIn.value = firebaseClient.config.apiKey || '';
-          if (projIn) projIn.value = firebaseClient.config.projectId || '';
-          if (appIn) appIn.value = firebaseClient.config.appId || '';
-        }
-        modal.style.display = 'flex';
-      }
-      return;
-    }
-
-    const fbCloseBtn = event.target.closest?.('#firebaseModalClose') || event.target.closest?.('#firebaseBackdrop');
-    if (fbCloseBtn) {
-      const modal = byId('firebaseModal');
-      if (modal) modal.style.display = 'none';
-      return;
-    }
-
-    const fbSaveBtn = event.target.closest?.('#fbSaveBtn');
-    if (fbSaveBtn) {
-      const apiKey = byId('fbApiKeyInput')?.value?.trim();
-      const projectId = byId('fbProjectIdInput')?.value?.trim();
-      const appId = byId('fbAppIdInput')?.value?.trim();
-      if (apiKey && projectId) {
-        firebaseClient.saveConfig({ apiKey, projectId, appId });
-        toast('Firebase設定を保存しました！');
-        if (firebaseSync.isConfigured()) {
-          firebaseSync.startListening();
-        }
-      } else {
-        toast('API Key と Project ID を入力してください');
-      }
-      const modal = byId('firebaseModal');
-      if (modal) modal.style.display = 'none';
       return;
     }
 
@@ -1813,14 +1822,15 @@ async function bootstrap() {
     requestAnimationFrame(loop);
   };
 
+  uiReady = true;
+  core.consumeMilestoneSummary();
   refresh();
   if (core.getState().forestStatus === 'completed') {
     // 前回のセッションで完成していた森を開いた場合は、起動画面ポップアップの代わりに
     // 完成画面(「新しい森をはじめる」への導線)を出す。
     showEndingModal(core.getForestSummary());
   } else {
-    showWelcomePopup();
-    maybeShowSymbolTreeIntro();
+// The forest and today's goal are available immediately, without stacked welcome dialogs.
   }
   requestAnimationFrame(loop);
   setInterval(() => {

@@ -1,0 +1,119 @@
+/* The child's daily flow: one goal, one action, a visible shared garden. */
+body { background: #f7f4e9; }
+.app-shell { height: 100dvh; grid-template-rows: auto minmax(0,1fr); }
+.topbar { min-height: 78px; padding: 12px 26px; background: #fffdf6; border-bottom: 1px solid #e6e3d3; gap: 20px; }
+.brand { flex-shrink: 0; }
+.brand__title { white-space: nowrap; font-size: 24px; }
+.brand__sub { font-size: 12px; margin-top: 6px; }
+.brand__icon { width: 48px; height: 48px; border-radius: 16px; display:grid; place-items:center; background:#e9efd9; }
+.topbar__stats { margin-left:auto; }
+.topbar__stats .stat-pill, .topbar__progress { display:none; }
+.child-settings { position:relative; flex-shrink:0; font-size:13px; }
+.child-settings > summary { cursor:pointer; padding:14px; border-radius:14px; border:1px solid #d9dfce; list-style:none; }
+.child-settings[open] { z-index:100; }
+.child-settings .topbar__actions { position:absolute; top:55px; right:0; width:300px; padding:18px; background:#fffdf6; box-shadow:0 12px 40px #27392326; border-radius:18px; display:grid; grid-template-columns:1fr 1fr; }
+.child-settings #classConnectBar { position:absolute; right:0; top:290px; width:300px; flex-direction:column; padding:16px; background:#fffdf6; box-shadow:0 12px 40px #27392326; }
+.class-connect-bar__form { display:grid; gap:10px; width:100%; }
+.class-connect-bar input { width:100%; min-height:48px; padding:10px; }
+#simpleModeToggle { display:none; }
+.main-layout { grid-template-columns:300px minmax(0,1fr); padding:24px; gap:24px; }
+.sidebar { gap:18px; }
+.child-nav { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+.child-nav button { border:0; background:transparent; border-radius:14px; padding:12px 3px; color:#53644c; font-size:14px; font-weight:700; min-height:58px; cursor:pointer; }
+.child-nav button.is-active { color:#285d3a; background:#e1ead3; box-shadow:inset 0 -3px #b9caa6; }
+.sidebar .panel[data-tab] { display:none; }
+.sidebar .panel[data-tab].is-active-tab { display:block; }
+.panel { border:1px solid #e3e3d1; background:#fffdf7; box-shadow:0 6px 24px #5f69400a; padding:20px; border-radius:24px; }
+.panel h2 { font-size:23px; margin-bottom:14px; }
+.goal-presets { background:transparent; padding:0; border:0; margin-bottom:18px; }
+.goal-presets__title { display:none; }
+.goal-presets__list { display:flex; flex-wrap:wrap; gap:8px; }
+.goal-preset-btn { min-height:48px; padding:10px 12px; font-size:15px; background:#f4f1e4; border:1px solid #e4dfca; border-radius:14px; cursor:pointer; }
+.goal-card { padding:16px; border-radius:20px; border:2px solid #d5e2bd; margin-bottom:16px; box-shadow:0 5px 0 #e8eadb; }
+.goal-card__header { display:block; }
+.goal-card__title { font-size:21px; line-height:1.65; }
+.goal-picture { display:block; width:54px; height:54px; background:#eef1db; border-radius:17px; text-align:center; font-size:30px; margin-bottom:10px; }
+.goal-card__remove-btn { font-size:12px; min-height:36px; background:transparent; padding:5px 8px; margin-top:8px; }
+.goal-card__meta { display:none; }
+.btn--goal-action { min-height:64px; width:100%; font-size:24px; border-radius:18px; background:#427b4c; border:2px solid #31683e; box-shadow:0 5px #285d34; }
+.btn--goal-action.btn--pending,.btn--goal-action.btn--done { font-size:18px; box-shadow:none; }
+.goal-today-hero { padding:14px; margin-bottom:18px; background:#f1f4e4; border:none; }
+.goal-today-hero__ring { background:conic-gradient(#619458 var(--pct,0%),#dae4c7 0); width:60px; height:60px; }
+.goal-today-hero__sub { font-size:20px; }
+.goal-edit { padding-top:15px; font-size:14px; }
+.goal-edit summary { cursor:pointer; min-height:44px; padding:10px 0; }
+.goal-form { display:grid; gap:10px; }
+.goal-form input,.goal-form select { min-width:0; width:100%; min-height:48px; border:1px solid #becba8; border-radius:10px; padding:10px; font-size:16px; background:#fff; }
+.goal-form .btn { min-height:48px; font-size:16px; }
+.muted { font-size:16px; line-height:1.8; }
+.center-stage { display:flex; flex-direction:column; min-width:0; gap:16px; }
+.garden-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.garden-heading h1 { font-size:25px; line-height:1.5; font-weight:700; margin:3px 0 0; letter-spacing:.035em; }
+#gardenMode { font-size:13px; color:#658258; font-weight:700; }
+.garden-day { font-size:13px; white-space:nowrap; color:#65765b; }
+.forest-viewport { flex:1; min-height:260px; border:1px solid #b9cfa5; border-radius:32px; background:radial-gradient(ellipse at 50% 40%,#f5f3c9,#dce6bf 62%,#b5cea2)!important; box-shadow:inset 0 0 70px #6f94512b,0 12px 30px #71815112; isolation:isolate; }
+.forest-node--ground { background-image:radial-gradient(ellipse at 50% 48%,#f1f2cd 0%,#d6e3b7 40%,#abc791 85%)!important; background-size:100% 100%!important; }
+.forest-node--asset,.garden-flower { mix-blend-mode:multiply; }
+.forest-node__label { display:none!important; }
+.forest-node--symbol-tree { filter:drop-shadow(0 15px 16px #a7ab6350); transition:width 1.2s ease,height 1.2s ease,left 1.2s ease,top 1.2s ease; }
+.garden-sign { position:absolute; left:22px; top:22px; z-index:8; display:grid; gap:7px; pointer-events:none; font-size:14px; color:#516d3c; }
+.garden-sign > span { font-size:20px; letter-spacing:5px; }
+.garden-sign strong { font-weight:500; }
+.living-garden { position:absolute; inset:0; pointer-events:none; z-index:1; }
+.garden-clearing { position:absolute; left:1624px; top:1792px; width:3248px; height:1680px; border-radius:50%; background:radial-gradient(ellipse,#f8f1c0 0%,#dbe4af 50%,#b2cc9255 67%,transparent 70%); }
+.garden-path { position:absolute; left:2912px; top:2576px; width:600px; height:2600px; border-radius:50% 50% 0 0; transform:rotate(-18deg); background:linear-gradient(90deg,transparent,#e7d7ae99 20%,#f1e4bb 50%,#e7d7ae99 80%,transparent); }
+.garden-flower { position:absolute; width:210px; height:210px; transform:translate(-50%,-85%) rotate(var(--turn)); object-fit:contain; }
+.garden-bottom { position:absolute; bottom:25px; left:50%; transform:translateX(-50%); width:min(380px,65%); z-index:9; padding:13px 20px; background:#fffcf0e8; border:1px solid #d7d9b9; border-radius:20px; box-shadow:0 4px 20px #78845412; pointer-events:none; }
+#gardenNext { display:block; font-size:16px; font-weight:700; margin-bottom:4px; }
+#gardenProgressLabel { font-size:12px; color:#60704e; }
+.garden-track { height:8px; border-radius:20px; background:#e1e7cd; overflow:hidden; margin-top:7px; }
+.garden-track i { display:block; height:100%; background:#6a9854; border-radius:20px; transition:width 1s; }
+.growth-message { position:absolute; top:26%; left:50%; transform:translate(-50%,-10px); z-index:40; width:max-content; max-width:90%; text-align:center; background:#fffbed; border:2px solid #ddc568; border-radius:22px; padding:16px 24px; box-shadow:0 10px 30px #6c713733; font-size:20px; font-weight:700; opacity:0; pointer-events:none; transition:opacity .3s,transform .3s; }
+.growth-message.is-visible { opacity:1; transform:translate(-50%,0); }
+.effort-seed { position:fixed; z-index:999; font-size:44px; pointer-events:none; filter:drop-shadow(0 0 12px #fff9a8); }
+.just-grew .garden-clearing { animation:garden-glow 1.8s ease; }
+@keyframes garden-glow { 50% { filter:brightness(1.12); } }
+.calm-mode *, .calm-mode *::before,.calm-mode *::after { animation:none!important; transition:none!important; }
+.child-settings .btn { white-space:normal; min-height:46px; }
+:focus-visible { outline:4px solid #26799a!important; outline-offset:4px; }
+.item-drawer-fab { font-size:15px; }
+@media(max-width:1000px) {
+  .topbar { padding:12px 18px; }
+  .main-layout { grid-template-columns:250px minmax(0,1fr); padding:14px; gap:14px; }
+  .panel { padding:14px; }
+  .garden-day { display:none; }
+  .garden-heading h1 { font-size:20px; }
+  .garden-bottom { bottom:84px; width:85%; }
+}
+@media(max-width:650px) {
+  body { overflow:auto; }
+  .app-shell { height:auto; min-height:100dvh; overflow:visible; }
+  .topbar { gap:8px; }
+  .brand__title { font-size:19px; }.brand__sub { display:none; }.brand__icon { display:none; }
+  .child-settings > summary { font-size:11px; padding:10px; }
+  .main-layout { display:flex; flex-direction:column; }
+  .center-stage { order:-1; }.forest-viewport { height:360px; flex:none; }
+  .sidebar { overflow:visible; }.garden-heading h1 { font-size:20px; }
+  .garden-sign { font-size:12px; top:12px; left:15px; }
+  .growth-message { font-size:17px; }
+}
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none!important; transition:none!important; } }
+
+.child-tools { display:flex; gap:8px; align-items:center; }
+.child-tools .btn { min-height:46px; font-size:14px; white-space:nowrap; }
+.join-forest { position:fixed; z-index:90; right:24px; top:80px; width:300px; background:#fffdf6; padding:20px; border-radius:20px; box-shadow:0 12px 35px #31492833; flex-direction:column; }
+.garden-track i { width:0; }
+@media(max-width:800px) { .child-tools .btn { font-size:12px; padding:10px; }.brand__title { font-size:19px; }.brand__sub { display:none; } }
+
+.living-garden { z-index:2; }.forest-layer--assets { z-index:3; }.forest-layer--animals { z-index:4; }
+.garden-wood { position:absolute; width:620px; height:740px; object-fit:contain; transform:translate(-50%,-90%); mix-blend-mode:multiply; opacity:.65; }
+
+.forest-viewport { background: #dce4b4 url('assets/forest-clearing-v2.png') center / cover no-repeat!important; }
+.forest-node--ground,.garden-clearing,.garden-path { display:none; }
+.garden-sign { background:#fffbeeeb; padding:12px 16px; border-radius:16px; box-shadow:0 4px 16px #61714318; }
+.garden-flower,.forest-node--asset { mix-blend-mode:normal; }
+.garden-flower { width:250px; height:250px; }
+.garden-bottom { background:#fffbedf2; }
+
+.child-nav { position:sticky; top:0; z-index:10; background:#f7f4e9; }.child-nav button { font-size:13px; white-space:nowrap; }
+#goalPicker summary { min-height:48px; padding:14px 0; cursor:pointer; font-size:15px; }.goal-card__remove-btn { display:none; }.goal-picture { display:inline-grid; place-items:center; width:42px; height:42px; margin:0 10px 8px 0; font-size:26px; }.goal-card__title { font-size:20px; }.goal-card { padding:14px; }.goal-today-hero__sub { font-size:17px; }

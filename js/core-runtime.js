@@ -15,38 +15,38 @@ function clone(value) {
 // events.json の演出テキストと、実際のゲーム内変化を紐付けるテーブル。
 // 5%刻み(5〜100%)の各イベントで、マップ上に実際に自然物・生き物が出現するように設定。
 const EVENT_AUTO_SPAWN = {
-  event_20: { type: 'bird', count: 1 },           // 森の音が聞こえる(小鳥のさえずり)
-  event_40: { type: 'insect', count: 3 },         // 虫たちが集まりだす(ハチ・チョウ / unlock40)
-  event_45: { type: 'insect', count: 2 },         // きのこが仲間を増やす(トンボ / unlock45)
-  event_50: { type: 'fish', count: 3 },           // 池が現れる(魚が跳ねる)
-  event_55: { type: 'bird', count: 2 },           // 小鳥がやってくる(unlock55)
-  event_60: { type: 'animal_ground', count: 1 },  // リスがあらわれる(unlock60)
-  event_70: { type: 'animal_ground', count: 2 },  // うさぎとかえるが遊びに来る(unlock70)
-  event_85: { type: 'insect', count: 2 },         // 森じゅうがにぎやかになる
-  event_95: { type: 'bird', count: 1 },           // 完成まであと少し
-  event_100: { type: 'animal_ground', count: 2 }  // 森の完成(フィナーレ)
+  event_20: { type: 'bird', count: 2 },           // 森の音が聞こえる(小鳥のさえずり)
+  event_40: { type: 'insect', count: 5 },         // 虫たちが集まりだす(ハチ・チョウ / unlock40)
+  event_45: { type: 'insect', count: 4 },         // きのこが仲間を増やす(トンボ / unlock45)
+  event_50: { type: 'fish', count: 5 },           // 池が現れる(魚が跳ねる)
+  event_55: { type: 'bird', count: 3 },           // 小鳥がやってくる(unlock55)
+  event_60: { type: 'animal_ground', count: 2 },  // リスがあらわれる(unlock60)
+  event_70: { type: 'animal_ground', count: 3 },  // うさぎとかえるが遊びに来る(unlock70)
+  event_85: { type: 'insect', count: 4 },         // 森じゅうがにぎやかになる
+  event_95: { type: 'bird', count: 2 },           // 完成まであと少し
+  event_100: { type: 'animal_ground', count: 3 }  // 森の完成(フィナーレ)
 };
 
 // 進行度(%)に応じてシステム側が自動でspots.jsonの決まった場所へ配置するテーブル。
 const EVENT_AUTO_PLACE = {
-  event_05: { spotType: 'grass', count: 4 },      // 草が芽吹く(新芽・草)
-  event_10: { spotType: 'flower', count: 3 },     // 花が咲く(小花)
-  event_15: { spotType: 'tree', count: 1 },       // 木が育つ(オークの木)
-  event_20: { spotType: 'seed', count: 3 },       // 森の音が聞こえる(木の実が落ちる)
-  event_25: { spotType: 'grass', count: 3 },      // 小道ができる(道ばたの草)
-  event_30: { spotType: 'seed', count: 2 },       // 橋がかかる(水辺の木の実)
-  event_35: { spotType: 'rock', count: 4 },       // 岩が顔を出す
-  event_40: { spotType: 'flower', count: 2 },     // 虫たちが集まりだす(追加の花)
-  event_45: { spotType: 'mushroom', count: 4 },   // きのこが仲間を増やす(unlock45)
-  event_50: { spotType: 'rock', count: 2 },       // 池が現れる(水辺の岩)
-  event_60: { spotType: 'seed', count: 3 },       // リスがあらわれる(どんぐりスポット)
-  event_65: { spotType: 'tree', count: 2 },       // 新しい木が仲間入り(白樺・針葉樹)
-  event_75: { spotType: 'effect', count: 6 },     // 森が輝きだす(光の粒子)
-  event_80: { spotType: 'effect', count: 4 },     // 虹が出る
-  event_85: { spotType: 'flower', count: 3 },     // 森じゅうがにぎやかになる
-  event_90: { spotType: 'effect', count: 6 },     // 特別な光が差し込む
-  event_95: { spotType: 'effect', count: 8 },     // 完成まであと少し
-  event_100: { spotType: 'effect', count: 15 }    // 森の完成(フィナーレのきらめき)
+  event_05: { spotType: 'grass', count: 6 },      // 草が芽吹く(新芽・草)
+  event_10: { spotType: 'flower', count: 6 },     // 花が咲く(小花)
+  event_15: { spotType: 'tree', count: 2 },       // 木が育つ(オークの木)
+  event_20: { spotType: 'seed', count: 5 },       // 森の音が聞こえる(木の実が落ちる)
+  event_25: { spotType: 'grass', count: 5 },      // 小道ができる(道ばたの草)
+  event_30: { spotType: 'seed', count: 4 },       // 橋がかかる(水辺の木の実)
+  event_35: { spotType: 'rock', count: 6 },       // 岩が顔を出す
+  event_40: { spotType: 'flower', count: 5 },     // 虫たちが集まりだす(追加の花)
+  event_45: { spotType: 'mushroom', count: 6 },   // きのこが仲間を増やす(unlock45)
+  event_50: { spotType: 'rock', count: 4 },       // 池が現れる(水辺の岩)
+  event_60: { spotType: 'seed', count: 5 },       // リスがあらわれる(どんぐりスポット)
+  event_65: { spotType: 'tree', count: 3 },       // 新しい木が仲間入り(白樺・針葉樹)
+  event_75: { spotType: 'effect', count: 8 },     // 森が輝きだす(光の粒子)
+  event_80: { spotType: 'effect', count: 6 },     // 虹が出る
+  event_85: { spotType: 'flower', count: 6 },     // 森じゅうがにぎやかになる
+  event_90: { spotType: 'effect', count: 8 },     // 特別な光が差し込む
+  event_95: { spotType: 'effect', count: 12 },    // 完成まであと少し
+  event_100: { spotType: 'effect', count: 20 }    // 森の完成(フィナーレのきらめき)
 };
 
 // バッジの解放判定ロジック。core-runtime(進行を確定させる側)と
@@ -185,10 +185,12 @@ export class SaveManager {
         bgm: true,
         sfx: true,
         zoom: 1,
-        cameraX: 50,
-        cameraY: 40,
+        cameraX: null,
+        cameraY: null,
+        gardenViewVersion: 0,
+        calmMode: false,
         showGrid: false,
-        simpleMode: false,
+        simpleMode: true,
         furigana: true,
         showSpots: true,
         // 低学年・支援級向けに、サイドパネルを1つずつ切り替えて見せる「かんたん表示」。
@@ -705,7 +707,7 @@ function applyReward(state, reward = {}) {
 
   const rewardPoints = numberOrZero(reward?.points);
   if (rewardPoints) {
-    pointsAdded += awardPoints(state, rewardPoints);
+    if (!state.sharedMode) pointsAdded += awardPoints(state, rewardPoints);
   }
 
   const rewardItems = reward?.items && typeof reward.items === 'object' ? reward.items : {};
@@ -799,7 +801,7 @@ export class ForestCore {
     if (!spot) return null;
     this.state.placedAssets = Array.isArray(this.state.placedAssets) ? this.state.placedAssets : [];
     const already = this.state.placedAssets.find((p) => p.spotId === 'symbolTreeSpot');
-    if (already) return already;
+    if (already) { already.x = spot.x; already.y = spot.y; return already; }
     const now = new Date();
     const item = {
       assetId: 'tree_symbol_01',
@@ -954,7 +956,7 @@ export class ForestCore {
         // 「木」「岩」などの大物の自動配置(v24)。児童の手を借りず見た目を進める。
         const autoPlace = EVENT_AUTO_PLACE[event.id];
         if (autoPlace) {
-          const placedItems = this.autoPlaceAtSpotType(autoPlace.spotType, autoPlace.count);
+          const placedItems = this.autoPlaceAtSpotType(autoPlace.spotType, autoPlace.count, event.id);
           if (placedItems.length) {
             summary.autoPlaced = summary.autoPlaced || [];
             summary.autoPlaced.push(...placedItems);
@@ -1014,6 +1016,14 @@ export class ForestCore {
       }
     }
 
+    // Keep undelivered celebrations when another snapshot has no new events.
+    const previous = this.pendingMilestoneSummary;
+    if (previous) {
+      for (const key of ['newEvents', 'newBadges', 'newCategories', 'autoPlaced', 'autoSpawned']) {
+        summary[key] = [...(previous[key] || []), ...(summary[key] || [])];
+      }
+      summary.forestCompleted = summary.forestCompleted || previous.forestCompleted;
+    }
     this.pendingMilestoneSummary = summary;
 
     for (const ev of summary.newEvents) {
@@ -1285,30 +1295,32 @@ export class ForestCore {
   // システムが自動で置く(v24)。手動のplaceAssetと違い、所持チェック(canPlaceAsset)は
   // 行わない(そもそも児童のパレットには出さないassetなので判定不要)し、
   // ポイントも加算しない(自動演出であって、児童の頑張りの記録ではないため)。
-  autoPlaceAtSpotType(spotType, count = 1) {
+  autoPlaceAtSpotType(spotType, count = 1, eventId = 'growth') {
     const progressPercent = computeProgressPercent(this.state);
     const candidateSpots = (this.spots || []).filter((spot) => spot.type === spotType);
     const placed = [];
     let remaining = count;
 
-    for (const spot of candidateSpots) {
-      if (remaining <= 0) break;
+    for (let n = 0; n < count; n++) {
+      const spot = candidateSpots[n % candidateSpots.length];
+      if (!spot || remaining <= 0) break;
       const maxCount = numberOrZero(spot.maxCount) || 1;
-      while (this.countPlacedAtSpot(spot.id) < maxCount && remaining > 0) {
+      if (this.countPlacedAtSpot(spot.id) < maxCount && remaining > 0) {
         const allowIds = Array.isArray(spot.allow) ? spot.allow : [];
         const allowed = allowIds
           .map((id) => this.assets.find((a) => a.id === id))
           .filter((asset) => asset && numberOrZero(asset.unlock) <= progressPercent);
         if (!allowed.length) break;
-        const asset = allowed[Math.floor(Math.random() * allowed.length)];
+        const asset = allowed[(n + Number(eventId.replace(/\D/g, ''))) % allowed.length];
 
         const now = new Date();
         const item = {
           assetId: asset.id,
           spotId: spot.id,
-          x: spot.x,
-          y: spot.y,
-          placedId: `auto_${now.getTime()}_${Math.random().toString(36).slice(2, 7)}`,
+          x: spot.x + Math.cos(n * 2.4 + Number(eventId.replace(/\D/g, ''))) * Math.max(1, spot.radius || 1),
+          y: spot.y + Math.sin(n * 2.4 + Number(eventId.replace(/\D/g, ''))) * Math.max(1, spot.radius || 1) * .7,
+          placedId: `auto_${this.state.forestGeneration}_${eventId}_${n}`,
+          systemGenerated: true,
           createdAt: now.toISOString(),
           studentId: null,
           nickname: '森',
@@ -1435,7 +1447,9 @@ export class ForestCore {
 
   setPlacedAssets(placedAssets) {
     if (!Array.isArray(placedAssets)) return;
-    this.state.placedAssets = placedAssets;
+    const derived = this.state.placedAssets.filter(p => p.systemGenerated);
+    this.state.placedAssets = [...placedAssets.filter(p => !p.systemGenerated), ...derived];
+    this.ensureSymbolTree();
     this.syncMilestones();
     this.persist();
   }
@@ -1449,7 +1463,7 @@ export class ForestCore {
 
   setCompletedEvents(events) {
     if (!Array.isArray(events)) return;
-    this.state.completedEvents = events;
+    this.state.completedEvents = [...new Set([...this.state.completedEvents, ...events])];
     this.syncMilestones();
     this.persist();
   }

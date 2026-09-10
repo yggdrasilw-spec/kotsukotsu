@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>コツコツの森</title>
   <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="./child-ui.css" />
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -16,26 +17,14 @@
           <div class="brand__sub"><ruby>森<rt>もり</rt></ruby>をコツコツ<ruby>育<rt>そだ</rt></ruby>てよう</div>
         </div>
       </div>
-      <div class="topbar__stats">
-        <span class="topbar__progress" title="森の進み具合">
-          <span class="topbar__progress-label"><ruby>森<rt>もり</rt></ruby>の<ruby>成長<rt>せいちょう</rt></ruby></span>
-          <span class="topbar__progress-track"><span id="progressBarFill" class="topbar__progress-fill"></span></span>
-          <strong id="progressPercentValue">0%</strong>
-        </span>
-        <span class="stat-pill">🪙 <ruby>所持<rt>しょじ</rt></ruby> <strong id="personalValue">0</strong> P</span>
-        <span class="stat-pill">🌸 <ruby>季節<rt>きせつ</rt></ruby> <strong id="seasonValue">春</strong></span>
-      </div>
-      <div class="topbar__actions">
-        <button id="soundToggle" class="btn btn--ghost btn--small" type="button" title="サウンドのON/OFF">🔊 おと</button>
-        <button id="bgmToggle" class="btn btn--ghost btn--small" type="button" title="森の環境音BGM">🍃 そよ風</button>
-        <button id="furiganaToggle" class="btn btn--ghost btn--small" type="button" title="かん字のよみがなを表示/非表示">ふりがな</button>
-        <button id="simpleModeToggle" class="btn btn--ghost btn--small" type="button" title="ひとつずつ表示にきりかえる">かんたん表示</button>
-        <button id="firebaseSettingsBtn" class="btn btn--ghost btn--small" type="button" title="リアルタイム連携設定">🔥 リアルタイム</button>
-        <a href="./teacher.html" class="link-quiet"><ruby>先生用<rt>せんせいよう</rt></ruby></a>
+      <div class="child-tools">
+        <button id="soundToggle" class="btn btn--ghost" type="button" aria-label="おとの入切">🔊 おと</button>
+        <button id="calmModeToggle" class="btn btn--ghost" type="button" aria-pressed="false">しずかに</button>
+        <button id="joinForestButton" class="btn btn--ghost" type="button">クラスに はいる</button>
       </div>
     </header>
 
-    <div id="classConnectBar" class="class-connect-bar" style="display:none;">
+    <div id="classConnectBar" class="class-connect-bar join-forest" style="display:none;">
       <span class="class-connect-bar__label">クラスに<ruby>入<rt>はい</rt></ruby>る</span>
       <form id="classConnectForm" class="class-connect-bar__form">
         <input type="text" id="classCodeFieldInput" placeholder="クラスID（例: AB12CD）" maxlength="16" required />
@@ -46,22 +35,28 @@
 
     <div class="main-layout">
       <aside class="sidebar sidebar--left">
+        <nav class="child-nav" aria-label="なにをする？">
+          <button type="button" data-tab-target="goals" class="panel-tabs__btn is-active">🌱 めあて</button>
+          <button type="button" data-tab-target="thanks" class="panel-tabs__btn">💛 ありがとう</button>
+          <button type="button" data-tab-target="classpower" class="panel-tabs__btn">🌼 みんな</button>
+        </nav>
         <section class="panel" data-tab="goals">
           <div class="panel-header">
-            <h2>🎯 <ruby>今日<rt>きょう</rt></ruby>の<ruby>目標<rt>もくひょう</rt></ruby></h2>
+            <h2>きょうの めあて</h2>
           </div>
           <!-- かんたん目標スタンプ（低学年向けクイック入力） -->
-          <div class="goal-presets">
+          <div id="goalPanel" class="goal-panel"></div>
+<details id="goalPicker" open><summary>🌱 めあてを えらぶ</summary>          <div class="goal-presets">
             <span class="goal-presets__title">よくつかう<ruby>目標<rt>もくひょう</rt></ruby>:</span>
             <div class="goal-presets__list">
-              <button type="button" class="goal-preset-btn" data-preset="本を10ページよむ">📖 読書</button>
-              <button type="button" class="goal-preset-btn" data-preset="計算ドリルを1ページやる">✏️ 算数</button>
-              <button type="button" class="goal-preset-btn" data-preset="漢字を3つおぼえる">📝 漢字</button>
-              <button type="button" class="goal-preset-btn" data-preset="なわとびを100回とぶ">🏃 うんどう</button>
-              <button type="button" class="goal-preset-btn" data-preset="つくえの上をかたづける">🧹 おそうじ</button>
+              <button type="button" class="goal-preset-btn" data-preset="ほんを よむ">📖 ほん</button>
+              <button type="button" class="goal-preset-btn" data-preset="さんすうを がんばる">✏️ さんすう</button>
+              <button type="button" class="goal-preset-btn" data-preset="じを かく">📝 じをかく</button>
+              <button type="button" class="goal-preset-btn" data-preset="からだを うごかす">🏃 うんどう</button>
+              <button type="button" class="goal-preset-btn" data-preset="おかたづけを する">🧹 おそうじ</button>
             </div>
           </div>
-          <div id="goalPanel" class="goal-panel"></div>
+</details>
         </section>
 
         <section class="panel" data-tab="thanks">
@@ -85,22 +80,21 @@
           <div id="classPowerPanel" class="class-power-panel"></div>
         </section>
 
-        <section class="panel" data-tab="badges">
-          <div class="panel-header">
-            <h2>🏅 バッジ</h2>
-          </div>
-          <div id="badgePanel" class="badge-panel"></div>
-        </section>
+
       </aside>
 
       <main class="center-stage">
+        <div class="garden-heading"><div><span id="gardenMode">みんなの もり</span><h1>「できた！」が、もりになる。</h1></div><span class="garden-day">🌤️ きょうも ようこそ</span></div>
         <div id="appMessage" class="app-message"><ruby>森<rt>もり</rt></ruby>を<ruby>読<rt>よ</rt></ruby>み<ruby>込<rt>こ</rt></ruby>み<ruby>中<rt>ちゅう</rt></ruby>…</div>
-        <div id="forestViewport" class="forest-viewport">
+        <div id="forestViewport" class="forest-viewport" aria-label="みんなのがんばりで育つ森">
+          <div class="garden-sign"><span>🌱 → 🌼 → 🌳</span><strong>できたら おはなが さくよ</strong></div>
+          <div id="growthMessage" class="growth-message" role="status" aria-live="polite"></div>
           <div id="forestWorld" class="forest-world">
             <div id="layerTerrain" class="forest-layer forest-layer--terrain"></div>
             <div id="layerAssets" class="forest-layer forest-layer--assets"></div>
             <div id="layerAnimals" class="forest-layer forest-layer--animals"></div>
           </div>
+          <div class="garden-bottom"><span id="gardenNext">つぎは… 草が芽吹く</span><span id="gardenProgressLabel">もりの せいちょう 0%</span><div class="garden-track"><i id="gardenProgress"></i></div></div>
           <div id="seasonOverlay" class="season-overlay" data-season="spring"></div>
           <div id="effectOverlay" class="effect-overlay"></div>
           <div id="milestoneHost" class="milestone-host"></div>
@@ -135,23 +129,6 @@
                   <dd id="placedInfoGoal">—</dd>
                 </div>
               </dl>
-            </div>
-          </div>
-
-          <div id="welcomeHost" class="welcome-host" style="display:none;">
-            <div id="welcomeBackdrop" class="placed-info-backdrop"></div>
-            <div class="welcome-card">
-              <button id="welcomeClose" class="placed-info-card__close" aria-label="とじる">×</button>
-              <div class="welcome-card__emoji">🌲</div>
-              <div id="welcomeStreak" class="welcome-card__streak">はじめまして、<ruby>今日<rt>きょう</rt></ruby>もようこそ</div>
-              <div id="welcomeProgress" class="welcome-card__progress"><ruby>森<rt>もり</rt></ruby>の<ruby>進<rt>すす</rt></ruby>み<ruby>具合<rt>ぐあい</rt></ruby>: 0%</div>
-              <p id="welcomeEncouragement" class="welcome-card__message"><ruby>今日<rt>きょう</rt></ruby>も<ruby>森<rt>もり</rt></ruby>に<ruby>来<rt>き</rt></ruby>てくれてありがとう。</p>
-              <div class="welcome-card__section">
-                <h4 id="welcomeHighlightsTitle">きのうのできごと</h4>
-                <ul id="welcomeHighlights" class="welcome-card__list"></ul>
-              </div>
-              <p id="welcomeUnread" class="welcome-card__unread"></p>
-              <button id="welcomeStart" class="btn btn--accent"><ruby>森<rt>もり</rt></ruby>にはいる</button>
             </div>
           </div>
 
@@ -207,31 +184,6 @@
             </div>
           </div>
 
-          <!-- Firebase設定モーダル -->
-          <div id="firebaseModal" class="placed-info-host" style="display:none;">
-            <div id="firebaseBackdrop" class="placed-info-backdrop"></div>
-            <div class="placed-info-card firebase-settings-card">
-              <button id="firebaseModalClose" class="placed-info-card__close" aria-label="とじる">×</button>
-              <h3>🔥 Firebase リアルタイム設定</h3>
-              <p class="muted" style="font-size:12px;">Firestore の設定を入力すると、友達とミリ秒単位でリアルタイム同期されます。</p>
-              <div class="field-row">
-                <label for="fbApiKeyInput">API Key</label>
-                <input type="text" id="fbApiKeyInput" placeholder="AIzaSy..." />
-              </div>
-              <div class="field-row">
-                <label for="fbProjectIdInput">Project ID</label>
-                <input type="text" id="fbProjectIdInput" placeholder="kotsukotsu-forest" />
-              </div>
-              <div class="field-row">
-                <label for="fbAppIdInput">App ID</label>
-                <input type="text" id="fbAppIdInput" placeholder="1:123456789:web:abcdef" />
-              </div>
-              <div class="confirm-card__actions" style="margin-top:16px;">
-                <button id="fbSaveBtn" class="btn btn--accent" type="button">保存して接続</button>
-              </div>
-            </div>
-          </div>
-
           <!-- 配置中バナー（タップで森に配置するモード時） -->
           <div id="placingBanner" class="placing-banner" style="display:none;">
             <div class="placing-banner__info">
@@ -252,7 +204,7 @@
         <!-- フローティング 🎒 たね・もちもの ボタン（右下） -->
         <button id="itemDrawerFab" class="item-drawer-fab" type="button" aria-label="たねともちものを開く">
           <span class="item-drawer-fab__icon">🎒</span>
-          <span class="item-drawer-fab__label">たね・アイテム</span>
+          <span class="item-drawer-fab__label">もりを かざる</span>
           <span id="itemDrawerBadge" class="item-drawer-fab__badge" style="display:none;">0</span>
         </button>
       </main>
@@ -265,7 +217,7 @@
         <div class="item-drawer__header">
           <div class="item-drawer__title">
             <span class="item-drawer__title-icon">🎒</span>
-            <h3><ruby>森<rt>もり</rt></ruby>のたね・アイテム</h3>
+            <h3>もりを かざる</h3>
           </div>
           <div class="item-drawer__header-actions">
             <span class="stat-pill stat-pill--small">🪙 <strong id="drawerPersonalValue">0</strong> P</span>
@@ -273,7 +225,7 @@
           </div>
         </div>
         <p class="item-drawer__guide">
-          ✨ <strong>ドラッグして森に置く</strong> か、タップで選んで森をタップしてね！
+          ① かざりを えらぶ → ② もりを タップ
         </p>
         <div id="drawerCategoryTabs" class="drawer-category-tabs"></div>
         <div id="drawerItemList" class="drawer-item-list"></div>
@@ -283,16 +235,9 @@
     <!-- ドラッグ中に指/マウスに追従するゴーストアイコン -->
     <div id="dragGhost" class="drag-ghost" style="display:none;"></div>
 
-    <!-- 「かんたん表示」時だけ表示するタブバー -->
-    <nav id="panelTabs" class="panel-tabs" style="display:none;">
-      <button type="button" class="panel-tabs__btn" data-tab-target="goals">🎯 <ruby>目標<rt>もくひょう</rt></ruby></button>
-      <button type="button" class="panel-tabs__btn" data-tab-target="thanks">🧡 ありがとう</button>
-      <button type="button" class="panel-tabs__btn" data-tab-target="classpower">🌟 クラスのちから</button>
-      <button type="button" class="panel-tabs__btn" data-tab-target="badges">🏅 バッジ</button>
-      <button type="button" class="panel-tabs__btn" id="panelTabShopBtn">🎒 アイテム</button>
-    </nav>
+
   </div>
 
-  <script type="module" src="./js/app.js"></script>
+  <script type="module" src="./js/app.js?v=child-20260910e"></script>
 </body>
 </html>

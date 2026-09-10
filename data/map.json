@@ -1,19 +1,19 @@
 {
     "meta": {
         "project": "kokotsu_forest",
-        "version": "0.1",
+        "version": "0.2",
         "cellSize": 112,
-        "notes": "112px基準の暫定正式版 map.json"
+        "notes": "112px基準・凝縮マップ版 map.json (58x46)"
     },
     "mapId": "kokotsu_forest_01",
     "name": "コツコツの森",
     "cellSize": 112,
-    "width": 100,
-    "height": 80,
+    "width": 58,
+    "height": 46,
     "background": "forest_background_soft_01",
     "view": {
-        "defaultX": 50,
-        "defaultY": 40,
+        "defaultX": 29,
+        "defaultY": 23,
         "minZoom": 0.85,
         "maxZoom": 1.2
     },
@@ -25,8 +25,8 @@
             "bounds": {
                 "x": 0,
                 "y": 0,
-                "width": 100,
-                "height": 18
+                "width": 58,
+                "height": 14
             },
             "density": 0.85,
             "allowed": [
@@ -43,9 +43,9 @@
             "type": "tree",
             "bounds": {
                 "x": 0,
-                "y": 18,
-                "width": 35,
-                "height": 42
+                "y": 14,
+                "width": 20,
+                "height": 32
             },
             "density": 0.75,
             "allowed": [
@@ -61,10 +61,10 @@
             "name": "花畑",
             "type": "flower",
             "bounds": {
-                "x": 10,
-                "y": 22,
-                "width": 35,
-                "height": 16
+                "x": 6,
+                "y": 16,
+                "width": 18,
+                "height": 14
             },
             "density": 0.9,
             "allowed": [
@@ -79,10 +79,10 @@
             "name": "きのこの木陰",
             "type": "mushroom",
             "bounds": {
-                "x": 28,
-                "y": 14,
-                "width": 20,
-                "height": 18
+                "x": 16,
+                "y": 8,
+                "width": 14,
+                "height": 12
             },
             "density": 0.65,
             "allowed": [
@@ -93,15 +93,15 @@
         },
         {
             "id": "pondWest",
-            "name": "西の池",
+            "name": "静かな池",
             "type": "pond",
             "bounds": {
-                "x": 60,
-                "y": 28,
+                "x": 36,
+                "y": 18,
                 "width": 16,
-                "height": 12
+                "height": 14
             },
-            "density": 0.4,
+            "density": 0.5,
             "allowed": [
                 "fish_small",
                 "fish_medium",
@@ -115,10 +115,10 @@
             "name": "岩場",
             "type": "rock",
             "bounds": {
-                "x": 45,
+                "x": 28,
                 "y": 4,
-                "width": 20,
-                "height": 16
+                "width": 14,
+                "height": 10
             },
             "density": 0.55,
             "allowed": [
@@ -130,33 +130,33 @@
         },
         {
             "id": "pathCenter",
-            "name": "中央小道",
+            "name": "森の小道",
             "type": "path",
             "bounds": {
-                "x": 38,
-                "y": 20,
-                "width": 24,
-                "height": 40
+                "x": 22,
+                "y": 16,
+                "width": 14,
+                "height": 26
             },
-            "density": 0.2,
+            "density": 0.3,
             "allowed": [
                 "path",
                 "sign",
                 "bench"
             ],
-            "notes": "森を横断する小道"
+            "notes": "森をつなぐ小道"
         },
         {
             "id": "specialSpotArea",
             "name": "特別演出ゾーン",
             "type": "effect",
             "bounds": {
-                "x": 40,
+                "x": 22,
                 "y": 16,
-                "width": 20,
-                "height": 12
+                "width": 14,
+                "height": 14
             },
-            "density": 0.15,
+            "density": 0.3,
             "allowed": [
                 "sparkle_small",
                 "glow",
@@ -172,26 +172,16 @@
             "assetId": "grass_01",
             "x": 0,
             "y": 0,
-            "width": 100,
-            "height": 80,
+            "width": 58,
+            "height": 46,
             "layer": "ground"
-        },
-        {
-            "id": "path_center_01",
-            "type": "path",
-            "assetId": "path_01",
-            "x": 38,
-            "y": 20,
-            "width": 24,
-            "height": 40,
-            "layer": "path"
         },
         {
             "id": "pond_west_01",
             "type": "pond",
             "assetId": "pond_medium_01",
-            "x": 63,
-            "y": 31,
+            "x": 39,
+            "y": 21,
             "width": 5,
             "height": 4,
             "layer": "pond"
@@ -200,8 +190,8 @@
             "id": "bridge_west_01",
             "type": "bridge",
             "assetId": "bridge_medium_01",
-            "x": 64,
-            "y": 33,
+            "x": 40,
+            "y": 23,
             "width": 4,
             "height": 1,
             "layer": "bridge"
@@ -215,8 +205,8 @@
             "bounds": {
                 "x": 0,
                 "y": 0,
-                "width": 100,
-                "height": 18
+                "width": 58,
+                "height": 14
             },
             "effects": [
                 "grow",
@@ -229,10 +219,10 @@
             "name": "花畑ゾーンA",
             "area": "flowerMeadow",
             "bounds": {
-                "x": 10,
-                "y": 22,
-                "width": 35,
-                "height": 16
+                "x": 6,
+                "y": 16,
+                "width": 18,
+                "height": 14
             },
             "effects": [
                 "sparkle",
@@ -241,5 +231,5 @@
             "notes": "花が咲く範囲"
         }
     ],
-    "notes": "コツコツの森の基本マップ定義"
+    "notes": "コツコツの森のコンパクト・高密度マップ定義"
 }

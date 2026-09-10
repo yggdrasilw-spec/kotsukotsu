@@ -180,6 +180,13 @@ export class FirebaseClient {
     return unsub;
   }
 
+  listenGoalLog({ classCode, studentId, onData, onError }) {
+    const q = query(collection(this.db, 'classes', classCode, 'goalLog'), where('studentId', '==', studentId));
+    const unsub = onSnapshot(q, snap => onData(snap.docs.map(d => ({ ...d.data(), id: d.id, logId: d.id }))), onError);
+    this.unsubscribers.push(unsub);
+    return unsub;
+  }
+
   listenApprovalQueue({ classCode, onData, onError }) {
     if (!this.db || !classCode) return () => {};
     const colRef = collection(this.db, 'classes', classCode, 'goalLog');
@@ -389,8 +396,8 @@ export class FirebaseClient {
         studentId: '',
         assetId: 'tree_symbol_01',
         spotId: 'symbolTreeSpot',
-        x: 50,
-        y: 26,
+        x: 29,
+        y: 23,
         goalId: '',
         goalTitle: '',
         nickname: 'コツコツの森',
@@ -462,64 +469,62 @@ export class FirebaseClient {
   }
 
   // 目標達成の提出（自己承認 or 先生承認待ち）
-  async submitGoalCompletion({ classCode, studentId, goalId, goalTitle, autoApprove = true }) {
-    if (!this.db || !classCode) return { ok: false };
-    const logId = 'glog_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-    const ref = doc(this.db, 'classes', classCode, 'goalLog', logId);
-    const status = autoApprove ? 'approved' : 'pending';
-    const now = new Date();
-    const nowIso = now.toISOString();
-    const today = todayKeyJst(now);
-
-    await setDoc(ref, {
-      logId,
-      classCode,
-      studentId,
-      goalId,
-      goalTitle,
-      date: today,
-      status,
-      requestedAt: nowIso,
-      resolvedAt: autoApprove ? nowIso : '',
-      points: autoApprove ? POINTS_PER_GOAL_COMPLETION : 0
-    });
-
-    if (autoApprove) {
-      // ポイント加算と貢献ログ記録
-      await this.awardGoalPointsAndAnnounce({ classCode, studentId, goalTitle, points: POINTS_PER_GOAL_COMPLETION, actionNoun: `「${goalTitle}」の達成` });
-    }
-
-    return { ok: true, logId, status };
+  async submitGoalCompletion({ classCode, studentId, goalId, requestId }) {
+    if (!this.db || !classCode || !studentId || !goalId) return { ok: false };
+    const logId = requestId || crypto.randomUUID();
+    return this.commitGoal({ classCode, studentId, goalId, logId, submit: true });
   }
 
-  // 先生による目標の承認 / 却下
   async resolveGoalApproval({ classCode, logId, approve = true }) {
+    return this.commitGoal({ classCode, logId, approve, submit: false });
+  }
+
+  // The record, points, daily limit and announcement commit together, exactly once.
+  async commitGoal({ classCode, studentId, goalId, logId, submit, approve = true }) {
     if (!this.db || !classCode || !logId) return { ok: false };
-    const ref = doc(this.db, 'classes', classCode, 'goalLog', logId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return { ok: false, reason: 'not_found' };
-    const logData = snap.data();
-
-    const status = approve ? 'approved' : 'rejected';
-    const nowIso = new Date().toISOString();
-
-    await updateDoc(ref, {
-      status,
-      resolvedAt: nowIso,
-      points: approve ? POINTS_PER_GOAL_COMPLETION : 0
+    const classRef = doc(this.db, 'classes', classCode);
+    const logRef = doc(this.db, 'classes', classCode, 'goalLog', logId);
+    return runTransaction(this.db, async txn => {
+      const logSnap = await txn.get(logRef);
+      const prior = logSnap.exists() ? logSnap.data() : null;
+      if (submit && prior) return { ok: true, status: prior.status, entry: { ...prior, id: logId } };
+      if (!submit && (!prior || prior.status !== 'pending')) return { ok: false, reason: 'already_resolved' };
+      const sid = submit ? studentId : prior.studentId;
+      const gid = submit ? goalId : prior.goalId;
+      const studentRef = doc(this.db, 'classes', classCode, 'students', sid);
+      const goalRef = doc(this.db, 'classes', classCode, 'goals', gid);
+      const classSnap = await txn.get(classRef);
+      const studentSnap = await txn.get(studentRef);
+      const goalSnap = await txn.get(goalRef);
+      if (!classSnap.exists() || !studentSnap.exists() || !goalSnap.exists()) return { ok: false, reason: 'not_found' };
+      const goal = goalSnap.data(), info = classSnap.data(), student = studentSnap.data();
+      if (submit && (goal.studentId !== sid || goal.active === false)) return { ok: false, reason: 'invalid_goal' };
+      const today = todayKeyJst();
+      const count = goal.completionDay === today ? Number(goal.completionCount) || 0 : 0;
+      if (submit && count >= (Number(goal.targetCount) || 1)) return { ok: false, reason: 'already_completed_today' };
+      const status = submit ? (info.classInfo?.goalApprovalMode === 'teacher' ? 'pending' : 'approved') : (approve ? 'approved' : 'rejected');
+      const now = new Date().toISOString();
+      const points = status === 'approved' ? POINTS_PER_GOAL_COMPLETION : 0;
+      const entry = { ...(prior || {}), id: logId, logId, classCode, studentId: sid, goalId: gid,
+        goalTitle: goal.title || prior?.goalTitle || '', date: prior?.date || today, status,
+        requestedAt: prior?.requestedAt || now, resolvedAt: status === 'pending' ? '' : now, points };
+      txn.set(logRef, entry);
+      if (submit) txn.update(goalRef, { completionDay: today, completionCount: count + 1 });
+      else if (!approve && goal.completionDay === prior.date) txn.update(goalRef, { completionCount: Math.max(0, (Number(goal.completionCount) || 0) - 1) });
+      if (points) {
+        const before = Number(info.forestState?.classPoints) || 0;
+        const total = before + points;
+        const clear = Number(info.classInfo?.clearPoint) || 1000;
+        txn.update(classRef, { 'forestState.classPoints': total, updatedAt: now });
+        txn.update(studentRef, { personalPoints: (Number(student.personalPoints) || 0) + points, lifetimePoints: (Number(student.lifetimePoints) || 0) + points });
+        const milestone = Math.floor(Math.min(total / clear * 100, 100) / 5) > Math.floor(Math.min(before / clear * 100, 100) / 5);
+        const activityRef = doc(this.db, 'classes', classCode, 'activityLog', 'goal_' + logId);
+        txn.set(activityRef, { logId: 'goal_' + logId, classCode, type: milestone ? 'contribution_milestone' : 'contribution',
+          message: `🌼 ${student.nickname || 'おともだち'}さんの「${entry.goalTitle}」で、もりが そだったよ`,
+          actorName: student.nickname || '', points, progress: Math.min(100, Math.floor(total / clear * 20) * 5), createdAt: now });
+      }
+      return { ok: true, status, entry, pointsAwarded: points };
     });
-
-    if (approve) {
-      await this.awardGoalPointsAndAnnounce({
-        classCode,
-        studentId: logData.studentId,
-        goalTitle: logData.goalTitle,
-        points: POINTS_PER_GOAL_COMPLETION,
-        actionNoun: `「${logData.goalTitle}」の承認`
-      });
-    }
-
-    return { ok: true };
   }
 
   // ポイント付与＆5%節目到達判定と活動ログ追加
@@ -594,44 +599,22 @@ export class FirebaseClient {
   // ---- 配置物管理 ----
 
   async setPlacedAsset({ classCode, placedId, data }) {
-    if (!this.db || !classCode || !placedId) return { ok: false };
-    const ref = doc(this.db, 'classes', classCode, 'placedAssets', placedId);
-    await setDoc(ref, {
-      ...data,
-      placedId,
-      updatedAt: new Date().toISOString()
-    }, { merge: true });
-
-    // 配置時のポイント加算（+2pt）
-    if (data.studentId) {
-      try {
-        const classRef = doc(this.db, 'classes', classCode);
-        const studentRef = doc(this.db, 'classes', classCode, 'students', data.studentId);
-        await runTransaction(this.db, async (txn) => {
-          const classSnap = await txn.get(classRef);
-          const studentSnap = await txn.get(studentRef);
-          if (classSnap.exists()) {
-            const currentPoints = Number(classSnap.data().forestState?.classPoints) || 0;
-            txn.update(classRef, {
-              'forestState.classPoints': currentPoints + POINTS_PER_PLACEMENT,
-              updatedAt: new Date().toISOString()
-            });
-          }
-          if (studentSnap.exists()) {
-            const currentPersonal = Number(studentSnap.data().personalPoints) || 0;
-            const currentLifetime = Number(studentSnap.data().lifetimePoints) || 0;
-            txn.update(studentRef, {
-              personalPoints: currentPersonal + POINTS_PER_PLACEMENT,
-              lifetimePoints: currentLifetime + POINTS_PER_PLACEMENT
-            });
-          }
-        });
-      } catch (err) {
-        console.warn('[FirebaseClient] place points error:', err);
-      }
-    }
-
-    return { ok: true };
+    if (!this.db || !classCode || !placedId || !data.studentId) return { ok: false };
+    const placedRef = doc(this.db, 'classes', classCode, 'placedAssets', placedId);
+    const studentRef = doc(this.db, 'classes', classCode, 'students', data.studentId);
+    return runTransaction(this.db, async txn => {
+      const placedSnap = await txn.get(placedRef);
+      const studentSnap = await txn.get(studentRef);
+      if (placedSnap.exists()) return { ok: true };
+      if (!studentSnap.exists()) return { ok: false };
+      const student = studentSnap.data();
+      const quantities = { ...Object.fromEntries((student.ownedAssets || []).map(id => [id, 1])), ...student.assetQuantities };
+      if (!(Number(quantities[data.assetId]) > 0)) return { ok: false, reason: 'not_owned', data: { assetQuantities: quantities } };
+      quantities[data.assetId] -= 1;
+      txn.update(studentRef, { assetQuantities: quantities });
+      txn.set(placedRef, { ...data, placedId, updatedAt: new Date().toISOString() });
+      return { ok: true };
+    });
   }
 
   async deletePlacedAsset({ classCode, placedId }) {
@@ -643,37 +626,28 @@ export class FirebaseClient {
 
   // ---- ショップ購入 ----
 
-  async buyItem({ classCode, studentId, itemId, assetId, itemName, price = 0 }) {
-    if (!this.db || !classCode || !studentId) return { ok: false };
+  async buyItem({ classCode, studentId, itemId, assetId, itemName, price = 0, requestId }) {
+    if (!this.db || !classCode || !studentId || !assetId || !Number.isFinite(price) || price < 0) return { ok: false };
     const studentRef = doc(this.db, 'classes', classCode, 'students', studentId);
-    const snap = await getDoc(studentRef);
-    if (!snap.exists()) return { ok: false, reason: 'not_found' };
-
-    const student = snap.data();
-    const currentPoints = Number(student.personalPoints) || 0;
-    if (currentPoints < price) return { ok: false, reason: 'not_enough_points' };
-
-    const shopPurchased = Array.isArray(student.shopPurchased) ? [...student.shopPurchased] : [];
-    const ownedAssets = Array.isArray(student.ownedAssets) ? [...student.ownedAssets] : [];
-
-    if (itemId && !shopPurchased.includes(itemId)) shopPurchased.push(itemId);
-    if (assetId && !ownedAssets.includes(assetId)) ownedAssets.push(assetId);
-
-    const newPoints = currentPoints - price;
-    await updateDoc(studentRef, {
-      personalPoints: newPoints,
-      shopPurchased,
-      ownedAssets
+    const receiptRef = doc(this.db, 'classes', classCode, 'activityLog', 'purchase_' + (requestId || crypto.randomUUID()));
+    return runTransaction(this.db, async txn => {
+      const studentSnap = await txn.get(studentRef);
+      const receiptSnap = await txn.get(receiptRef);
+      if (!studentSnap.exists()) return { ok: false, reason: 'not_found' };
+      const student = studentSnap.data();
+      if (receiptSnap.exists()) return { ok: true, data: student };
+      const balance = Number(student.personalPoints) || 0;
+      if (balance < price) return { ok: false, reason: 'not_enough_points' };
+      const quantities = { ...Object.fromEntries((student.ownedAssets || []).map(id => [id, 1])), ...student.assetQuantities };
+      quantities[assetId] = (Number(quantities[assetId]) || 0) + 1;
+      const data = { personalPoints: balance - price, assetQuantities: quantities,
+        ownedAssets: [...new Set([...(student.ownedAssets || []), assetId])],
+        shopPurchased: [...new Set([...(student.shopPurchased || []), itemId])] };
+      txn.update(studentRef, data);
+      txn.set(receiptRef, { type: 'purchase', actorName: student.nickname || '', createdAt: new Date().toISOString(),
+        message: `🎒 ${student.nickname || 'おともだち'}さんが ${itemName || 'かざり'}を えらんだよ` });
+      return { ok: true, data };
     });
-
-    await this.addActivityLog({
-      classCode,
-      type: 'purchase',
-      message: `🛍️ ${student.nickname || 'だれか'}が「${itemName || assetId || itemId}」を手に入れました`,
-      actorName: student.nickname || ''
-    });
-
-    return { ok: true, data: { personalPoints: newPoints } };
   }
 
   // ---- 森の状態・ライフサイクル管理 ----

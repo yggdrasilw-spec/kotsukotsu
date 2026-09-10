@@ -57,7 +57,7 @@ function assetPosition(item, asset, cellSize, scale = 1) {
 // (針葉樹: 4×5マス)よりも一回り大きい、6倍サイズのシンボルツリーになる。
 function symbolTreeScale(progressPercent) {
   const p = Math.max(0, Math.min(100, Number(progressPercent) || 0));
-  return 1 + (p / 100) * 5;
+  return 6 + (p / 100) * 5;
 }
 
 // ビューポートカリング: ワールド座標上の矩形が、カメラの可視範囲と
@@ -531,13 +531,15 @@ export function createForestRenderer({
     let sub;
     if (isAllDone) {
       sub = `<span class="goal-today-hero__sub goal-today-hero__sub--done">今日は${rb('全部', 'ぜんぶ')}できたよ！🎉</span>`;
+    } else if (remaining === 0 && totalPending > 0) {
+      sub = '<span class="goal-today-hero__sub">せんせいに とどけたよ</span>';
     } else if (remaining === 1) {
       sub = `<span class="goal-today-hero__sub goal-today-hero__sub--last">あと<strong>1</strong>つ！</span>`;
     } else {
       sub = `<span class="goal-today-hero__sub">あと <strong>${remaining}</strong> つ</span>`;
     }
     const pendingNote = totalPending
-      ? `<span class="goal-today-hero__pending">${rb('承認', 'しょうにん')}待ち ${totalPending}</span>`
+      ? `<span class="goal-today-hero__pending">せんせいに とどけたよ ${totalPending}</span>`
       : '';
 
     return `
@@ -568,11 +570,11 @@ export function createForestRenderer({
           const isDone = g.done >= g.targetCount;
           let btnContent = '<span class="btn-goal-icon">✨</span> できた！';
           let btnClass = 'btn btn--goal-action';
-          if (g.pending > 0 && !isDone) {
-            btnContent = `<span class="btn-goal-icon">⏳</span> ${rb('承認', 'しょうにん')}待ち…`;
+          if (full && g.pending > 0 && !isDone) {
+            btnContent = `<span class="btn-goal-icon">⏳</span> せんせいに とどけたよ…`;
             btnClass += ' btn--pending';
           } else if (isDone) {
-            btnContent = `<span class="btn-goal-icon">💮</span> きょうは${rb('達成', 'たっせい')}！`;
+            btnContent = `<span class="btn-goal-icon">💮</span> できたね！`;
             btnClass += ' btn--done';
           }
 
@@ -585,12 +587,11 @@ export function createForestRenderer({
           return `
             <div class="goal-card${full ? ' goal-card--full' : ''}" data-goal-card-id="${escapeHtml(g.id)}">
               <div class="goal-card__header">
-                <div class="goal-card__title">${escapeHtml(g.title)}</div>
-                ${removeActions}
+                <div class="goal-card__title"><span class="goal-picture" aria-hidden="true">${/本|よむ|読/.test(g.title) ? "📖" : /算|計算|ドリル/.test(g.title) ? "✏️" : /うんどう|なわ|走/.test(g.title) ? "🏃" : /そうじ|かたづ/.test(g.title) ? "🧹" : "🌱"}</span>${escapeHtml(g.title)}</div>
               </div>
               <div class="goal-card__body">
                 ${renderGoalDots(g)}
-                <div class="goal-card__meta">きょう ${g.done}/${g.targetCount}${g.pending ? `（${rb('承認', 'しょうにん')}待ち ${g.pending}）` : ''}</div>
+                <div class="goal-card__meta">きょう ${g.done}/${g.targetCount}${g.pending ? `（せんせいに とどけたよ ${g.pending}）` : ''}</div>
               </div>
               <div class="goal-card__actions${confirmRemoveGoalId === g.id ? ' goal-card__actions--confirm' : ''}">
                 <button class="${btnClass}" data-goal-complete="${escapeHtml(g.id)}" ${full ? 'disabled' : ''}>${btnContent}</button>
@@ -598,7 +599,7 @@ export function createForestRenderer({
             </div>
           `;
         }).join('')
-      : `<p class="muted">まだ${rb('目標', 'もくひょう')}がありません。下から作ってみよう。</p>`;
+      : `<p class="muted">きょう がんばることを<br>えらんでみよう。</p>`;
 
     const form = canAddMore
       ? `
@@ -616,10 +617,10 @@ export function createForestRenderer({
       : `<p class="muted">${rb('目標', 'もくひょう')}は${rb('最大', 'さいだい')}${Number(settings.maxGoals || 3)}${rb('個', 'こ')}までです。</p>`;
 
     const modeNote = settings.approvalMode === 'teacher'
-      ? `<p class="muted">${rb('今', 'いま')}は${rb('先生', 'せんせい')}の${rb('承認', 'しょうにん')}があるとポイントがもらえます。</p>`
+      ? `<p class="muted">せんせいが みてくれたら、もりが そだつよ。</p>`
       : '';
 
-    return `${hero}${rows}${form}${modeNote}`;
+    return `${hero}${rows}<details class="goal-edit" ${confirmRemoveGoalId ? 'open' : ''}><summary>✏️ めあてを つくる・かえる</summary>${form}${goals.map(g => confirmRemoveGoalId === g.id ? `<p>「${escapeHtml(g.title)}」を やめる？</p><button class="btn" data-goal-remove-confirm="${escapeHtml(g.id)}">やめる</button><button class="btn" data-goal-remove-cancel="${escapeHtml(g.id)}">つづける</button>` : `<button class="btn" data-goal-remove="${escapeHtml(g.id)}">${escapeHtml(g.title)} を やめる</button>`).join('')}${modeNote}</details>`;
   }
 
   function renderStatus(state) {
@@ -677,9 +678,9 @@ export function createForestRenderer({
       const name = e.actorName || 'クラスの子';
       countByName.set(name, (countByName.get(name) || 0) + 1);
     }
-    const ranked = [...countByName.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const ranked = [...countByName.entries()].sort((a, b) => a[0].localeCompare(b[0], 'ja'));
     const chips = ranked.map(([name, count]) => `
-      <span class="class-power__chip">${escapeHtml(name)}さん<span class="class-power__chip-count">×${count}</span></span>
+      <span class="class-power__chip">${escapeHtml(name)}さん 🌼</span>
     `).join('');
 
     const milestoneNote = milestoneCount

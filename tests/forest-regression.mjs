@@ -1,0 +1,91 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { resolve, dirname } from 'node:path';
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const source = file => readFileSync(resolve(root, file), 'utf8');
+const load = async text => import('data:text/javascript;base64,' + Buffer.from(text).toString('base64'));
+globalThis.localStorage = {getItem:()=>null,setItem:()=>{},removeItem:()=>{}};
+globalThis.window = { localStorage };
+const { ForestCore } = await load(source('js/core-runtime.js'));
+const { FirebaseSync } = await load(source('js/firebase-sync.js'));
+const { growthFlowers } = await load(source('js/growth-view.js'));
+const assets = JSON.parse(source('data/assets.json')).assets;
+const spots = JSON.parse(source('data/spots.json')).spots;
+const events = JSON.parse(source('data/events.json')).events;
+const core = new ForestCore({assets,spots}); core.events = events;
+const callbacks = {};
+const fb = { isReady:()=>true, touchStudentLogin:()=>{}, cleanup:()=>{} };
+for (const name of ['listenClass','listenPlacedAssets','listenStudents','listenGoals','listenGoalLog','listenThanks','listenActivityLog']) fb[name]=opts=>{ callbacks[name]=opts.onData; };
+let approvalCount=0;
+const sync = new FirebaseSync({ firebaseClient:fb, core, onGoalApproved:()=>approvalCount++ });
+sync.info={classCode:'test',studentId:'s1',nickname:'こども'}; sync.startListening();
+const snapshot = points => ({classInfo:{clearPoint:1000},forestState:{classPoints:points,completedEvents:[],forestGeneration:1,forestStatus:'growing'}});
+callbacks.listenClass(snapshot(0));
+callbacks.listenClass(snapshot(50));
+const placed=core.state.placedAssets.length;
+assert.equal(core.consumeMilestoneSummary().newEvents.length,1);
+callbacks.listenClass(snapshot(50));
+assert.equal(core.state.placedAssets.length,placed,'Repeated snapshots must not duplicate scenery');
+assert.equal(core.consumeMilestoneSummary().newEvents.length,0);
+callbacks.listenPlacedAssets([]);
+assert.equal(core.state.placedAssets.length,placed,'A placement snapshot must preserve derived growth');
+callbacks.listenGoals([{goalId:'g1',title:'ほんを よむ',targetCount:1,active:true}]);
+callbacks.listenGoalLog([{id:'l1',goalId:'g1',status:'pending'}]);
+callbacks.listenGoalLog([{id:'l1',goalId:'g1',status:'approved'}]);
+callbacks.listenGoalLog([{id:'l1',goalId:'g1',status:'approved'}]);
+assert.equal(approvalCount,1,'Announce approval exactly once');
+assert.equal(core.state.goalLog[0].status,'approved');
+assert.deepEqual(growthFlowers(60),growthFlowers(60));
+assert.equal(growthFlowers(60).length,3);
+assert.equal(new Set(core.state.placedAssets.filter(p=>p.systemGenerated).map(p=>`${p.x},${p.y}`)).size,6,'Grass is spread across distinct positions');
+const pendingCore=new ForestCore({assets,spots});pendingCore.events=events;
+pendingCore.setClassPoints(50);pendingCore.syncMilestones();
+assert.equal(pendingCore.consumeMilestoneSummary().newEvents.length,1,'Empty updates must preserve an undelivered celebration');
+console.log('PASS: repeat snapshots, persistent scenery, distributed placement, approval delivery, stable flowers, retained celebrations');
+
+// Exercise the real transaction body with an in-memory Firestore adapter.
+const docs = new Map();
+const snapshotOf = key => ({exists:()=>docs.has(key),data:()=>structuredClone(docs.get(key))});
+const api = {
+ doc:(_db,...parts)=>parts.join('/'),
+ runTransaction:async (_db, work) => {
+   const writes=[];
+   const result=await work({get:async key=>snapshotOf(key),set:(key,value)=>writes.push(()=>docs.set(key,structuredClone(value))),update:(key,patch)=>writes.push(()=>{
+     const value=docs.get(key); for(const [field,entry] of Object.entries(patch)) { const path=field.split('.'); let cursor=value; for(const segment of path.slice(0,-1)) cursor=cursor[segment]??={}; cursor[path.at(-1)]=entry; }
+   })});
+   writes.forEach(w=>w()); return result;
+ }
+};
+globalThis.testFirestore=api;
+let clientSource=source('js/firebase-client.js').replace(/^import[\s\S]*?from [^;]+;/gm,'');
+clientSource='const {doc,runTransaction}=globalThis.testFirestore; const FIREBASE_CONFIG=null;\n'+clientSource;
+const {FirebaseClient}=await load(clientSource);
+const client=Object.create(FirebaseClient.prototype);client.db={};
+docs.set('classes/c1',{classInfo:{clearPoint:1000,goalApprovalMode:'teacher'},forestState:{classPoints:0}});
+docs.set('classes/c1/students/s1',{nickname:'こども',personalPoints:0,lifetimePoints:0});
+docs.set('classes/c1/goals/g1',{studentId:'s1',title:'ほんを よむ',targetCount:1,active:true});
+const submission={classCode:'c1',studentId:'s1',goalId:'g1',requestId:'r1'};
+assert.equal((await client.submitGoalCompletion(submission)).status,'pending');
+assert.equal((await client.submitGoalCompletion(submission)).status,'pending');
+assert.equal((await client.submitGoalCompletion({...submission,requestId:'r2'})).reason,'already_completed_today');
+assert.equal(docs.get('classes/c1').forestState.classPoints,0);
+assert.equal((await client.resolveGoalApproval({classCode:'c1',logId:'r1'})).ok,true);
+assert.equal((await client.resolveGoalApproval({classCode:'c1',logId:'r1'})).reason,'already_resolved');
+assert.equal(docs.get('classes/c1').forestState.classPoints,20);
+assert.equal(docs.get('classes/c1/students/s1').personalPoints,20);
+assert.equal([...docs.keys()].filter(k=>k.includes('/activityLog/')).length,1);
+console.log('PASS: submission retries, daily limit, pending points, repeated approvals, atomic point/log updates');
+const purchase={classCode:'c1',studentId:'s1',itemId:'flower',assetId:'flower',price:10,requestId:'buy1'};
+assert.equal((await client.buyItem(purchase)).ok,true);
+assert.equal((await client.buyItem(purchase)).ok,true);
+assert.equal(docs.get('classes/c1/students/s1').personalPoints,10);
+assert.equal(docs.get('classes/c1/students/s1').assetQuantities.flower,1);
+assert.equal((await client.buyItem({...purchase,price:11,requestId:'buy2'})).reason,'not_enough_points');
+const placement={classCode:'c1',placedId:'p1',data:{studentId:'s1',assetId:'flower',x:29,y:24}};
+assert.equal((await client.setPlacedAsset(placement)).ok,true);
+assert.equal((await client.setPlacedAsset(placement)).ok,true);
+assert.equal(docs.get('classes/c1/students/s1').assetQuantities.flower,0);
+assert.equal((await client.setPlacedAsset({...placement,placedId:'p2'})).reason,'not_owned');
+assert.equal(docs.get('classes/c1').forestState.classPoints,20);
+console.log('PASS: purchase retries, insufficient balance, placement retries, stock consumption, no placement point inflation');

@@ -1,11 +1,35 @@
 {
   "meta": {
     "project": "kokotsu_forest",
-    "version": "0.1",
+    "version": "0.2",
     "cellSize": 112,
-    "notes": "112px基準の暫定正式版 spots.json"
+    "notes": "112px基準・凝縮マップ版 spots.json (58x46)"
   },
   "spots": [
+    {
+      "id": "symbolTreeSpot",
+      "type": "symbolTree",
+      "area": "specialSpotArea",
+      "x": 29,
+      "y": 23,
+      "priority": 1,
+      "allow": [
+        "tree_symbol_01"
+      ],
+      "maxCount": 1,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0,
+      "stackable": false,
+      "description": "森の中心。苗木を植えてシンボルツリーとして育てる特別なスポット"
+    },
     {
       "id": "treeSpot001",
       "type": "tree",
@@ -30,17 +54,19 @@
       },
       "radius": 0,
       "stackable": false,
-      "description": "北側の木スポット"
+      "description": "北西の木スポット"
     },
     {
-      "id": "symbolTreeSpot",
-      "type": "symbolTree",
-      "area": "specialSpotArea",
-      "x": 50,
-      "y": 26,
+      "id": "treeSpot002",
+      "type": "tree",
+      "area": "forestNorth",
+      "x": 20,
+      "y": 6,
       "priority": 1,
       "allow": [
-        "tree_symbol_01"
+        "tree_oak_01",
+        "tree_birch_01",
+        "tree_pine_01"
       ],
       "maxCount": 1,
       "occupied": false,
@@ -54,92 +80,19 @@
       },
       "radius": 0,
       "stackable": false,
-      "description": "森の中心。苗木を植えてシンボルツリーとして育てる特別なスポット"
+      "description": "北中央の木スポット"
     },
     {
-      "id": "flowerSpot001",
-      "type": "flower",
-      "area": "flowerMeadow",
-      "x": 14,
-      "y": 28,
-      "priority": 1,
-      "allow": [
-        "flower_small_01",
-        "flower_patch_01"
-      ],
-      "maxCount": 6,
-      "occupied": false,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "offset": {
-        "x": 0,
-        "y": 0
-      },
-      "radius": 1,
-      "stackable": true,
-      "description": "花畑の花スポット1"
-    },
-    {
-      "id": "mushroomSpot001",
-      "type": "mushroom",
-      "area": "mushroomShade",
-      "x": 31,
-      "y": 18,
-      "priority": 1,
-      "allow": [
-        "mushroom_small_01",
-        "mushroom_patch_01"
-      ],
-      "maxCount": 5,
-      "occupied": false,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "offset": {
-        "x": 0,
-        "y": 0
-      },
-      "radius": 1,
-      "stackable": true,
-      "description": "木陰のきのこスポット"
-    },
-    {
-      "id": "birdSpot001",
-      "type": "bird",
+      "id": "treeSpot003",
+      "type": "tree",
       "area": "forestNorth",
-      "x": 11,
-      "y": 4,
+      "x": 48,
+      "y": 6,
       "priority": 1,
       "allow": [
-        "bird_small_01"
-      ],
-      "maxCount": 2,
-      "occupied": false,
-      "anchor": {
-        "x": 0.5,
-        "y": 0.8
-      },
-      "offset": {
-        "x": 0,
-        "y": -4
-      },
-      "radius": 0,
-      "stackable": true,
-      "description": "枝に止まる小鳥スポット"
-    },
-    {
-      "id": "squirrelSpot001",
-      "type": "animal_ground",
-      "area": "forestWest",
-      "x": 18,
-      "y": 16,
-      "priority": 1,
-      "allow": [
-        "squirrel_01",
-        "rabbit_01"
+        "tree_oak_01",
+        "tree_birch_01",
+        "tree_pine_01"
       ],
       "maxCount": 1,
       "occupied": false,
@@ -151,45 +104,23 @@
         "x": 0,
         "y": 0
       },
-      "radius": 1,
-      "stackable": true,
-      "description": "地面の小動物スポット"
+      "radius": 0,
+      "stackable": false,
+      "description": "北東の木スポット"
     },
     {
-      "id": "pondSpot001",
-      "type": "fish",
-      "area": "pondWest",
-      "x": 63,
-      "y": 31,
+      "id": "treeSpot004",
+      "type": "tree",
+      "area": "forestWest",
+      "x": 6,
+      "y": 24,
       "priority": 1,
       "allow": [
-        "fish_small_01"
+        "tree_oak_01",
+        "tree_birch_01",
+        "tree_pine_01"
       ],
-      "maxCount": 6,
-      "occupied": false,
-      "anchor": {
-        "x": 0.5,
-        "y": 0.5
-      },
-      "offset": {
-        "x": 0,
-        "y": 0
-      },
-      "radius": 2,
-      "stackable": true,
-      "description": "池の魚スポット"
-    },
-    {
-      "id": "frogSpot001",
-      "type": "animal_ground",
-      "area": "pondWest",
-      "x": 61,
-      "y": 36,
-      "priority": 2,
-      "allow": [
-        "frog_01"
-      ],
-      "maxCount": 2,
+      "maxCount": 1,
       "occupied": false,
       "anchor": {
         "x": 0.5,
@@ -199,27 +130,104 @@
         "x": 0,
         "y": 0
       },
-      "radius": 1,
-      "stackable": true,
-      "description": "池の近くのカエルスポット"
+      "radius": 0,
+      "stackable": false,
+      "description": "西の森の木スポット"
     },
     {
-      "id": "insectSpot001",
-      "type": "insect",
-      "area": "flowerMeadow",
-      "x": 19,
-      "y": 27,
+      "id": "treeSpot005",
+      "type": "tree",
+      "area": "forestWest",
+      "x": 10,
+      "y": 38,
       "priority": 1,
       "allow": [
-        "bee_01",
-        "butterfly_01",
-        "dragonfly_01"
+        "tree_oak_01",
+        "tree_birch_01",
+        "tree_pine_01"
+      ],
+      "maxCount": 1,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0,
+      "stackable": false,
+      "description": "南西の森の木スポット"
+    },
+    {
+      "id": "treeSpot006",
+      "type": "tree",
+      "area": "pondWest",
+      "x": 48,
+      "y": 34,
+      "priority": 1,
+      "allow": [
+        "tree_oak_01",
+        "tree_birch_01",
+        "tree_pine_01"
+      ],
+      "maxCount": 1,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0,
+      "stackable": false,
+      "description": "南東・池奥の木スポット"
+    },
+    {
+      "id": "treeSpot007",
+      "type": "tree",
+      "area": "pathCenter",
+      "x": 30,
+      "y": 38,
+      "priority": 1,
+      "allow": [
+        "tree_oak_01",
+        "tree_birch_01",
+        "tree_pine_01"
+      ],
+      "maxCount": 1,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0,
+      "stackable": false,
+      "description": "南の小道沿い木スポット"
+    },
+    {
+      "id": "flowerSpot001",
+      "type": "flower",
+      "area": "flowerMeadow",
+      "x": 10,
+      "y": 20,
+      "priority": 1,
+      "allow": [
+        "flower_small_01",
+        "flower_patch_01"
       ],
       "maxCount": 10,
       "occupied": false,
       "anchor": {
         "x": 0.5,
-        "y": 0.5
+        "y": 1.0
       },
       "offset": {
         "x": 0,
@@ -227,21 +235,45 @@
       },
       "radius": 2,
       "stackable": true,
-      "description": "花畑の虫スポット"
+      "description": "花畑の花スポット1"
     },
     {
-      "id": "acornSpot001",
-      "type": "seed",
-      "area": "forestNorth",
-      "x": 13,
-      "y": 9,
+      "id": "flowerSpot002",
+      "type": "flower",
+      "area": "flowerMeadow",
+      "x": 16,
+      "y": 26,
       "priority": 1,
       "allow": [
-        "acorn_01",
-        "berry_01",
-        "pinecone_01"
+        "flower_small_01",
+        "flower_patch_01"
       ],
-      "maxCount": 12,
+      "maxCount": 10,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 2,
+      "stackable": true,
+      "description": "花畑の花スポット2"
+    },
+    {
+      "id": "flowerSpot003",
+      "type": "flower",
+      "area": "specialSpotArea",
+      "x": 25,
+      "y": 24,
+      "priority": 1,
+      "allow": [
+        "flower_small_01",
+        "flower_patch_01"
+      ],
+      "maxCount": 8,
       "occupied": false,
       "anchor": {
         "x": 0.5,
@@ -253,39 +285,139 @@
       },
       "radius": 1,
       "stackable": true,
-      "description": "木の実の散らばりスポット"
+      "description": "シンボルツリー左の花スポット"
     },
     {
-      "id": "sparkleSpot001",
-      "type": "effect",
+      "id": "flowerSpot004",
+      "type": "flower",
       "area": "specialSpotArea",
-      "x": 50,
-      "y": 20,
+      "x": 33,
+      "y": 24,
       "priority": 1,
       "allow": [
-        "sparkle_small_01",
-        "glow_01"
+        "flower_small_01",
+        "flower_patch_01"
       ],
-      "maxCount": 20,
+      "maxCount": 8,
       "occupied": false,
       "anchor": {
         "x": 0.5,
-        "y": 0.5
+        "y": 1.0
       },
       "offset": {
         "x": 0,
         "y": 0
       },
-      "radius": 3,
+      "radius": 1,
       "stackable": true,
-      "description": "特別演出用スポット"
+      "description": "シンボルツリー右の花スポット"
+    },
+    {
+      "id": "flowerSpot005",
+      "type": "flower",
+      "area": "pathCenter",
+      "x": 24,
+      "y": 34,
+      "priority": 1,
+      "allow": [
+        "flower_small_01",
+        "flower_patch_01"
+      ],
+      "maxCount": 8,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 1,
+      "stackable": true,
+      "description": "小道沿いの花スポット"
+    },
+    {
+      "id": "mushroomSpot001",
+      "type": "mushroom",
+      "area": "mushroomShade",
+      "x": 19,
+      "y": 12,
+      "priority": 1,
+      "allow": [
+        "mushroom_small_01",
+        "mushroom_patch_01"
+      ],
+      "maxCount": 8,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 2,
+      "stackable": true,
+      "description": "木陰のきのこスポット1"
+    },
+    {
+      "id": "mushroomSpot002",
+      "type": "mushroom",
+      "area": "mushroomShade",
+      "x": 24,
+      "y": 10,
+      "priority": 1,
+      "allow": [
+        "mushroom_small_01",
+        "mushroom_patch_01"
+      ],
+      "maxCount": 8,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 2,
+      "stackable": true,
+      "description": "木陰のきのこスポット2"
+    },
+    {
+      "id": "mushroomSpot003",
+      "type": "mushroom",
+      "area": "forestWest",
+      "x": 8,
+      "y": 30,
+      "priority": 1,
+      "allow": [
+        "mushroom_small_01",
+        "mushroom_patch_01"
+      ],
+      "maxCount": 6,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 1,
+      "stackable": true,
+      "description": "西の森のきのこスポット"
     },
     {
       "id": "rockSpot001",
       "type": "rock",
       "area": "rockHill",
-      "x": 52,
-      "y": 10,
+      "x": 32,
+      "y": 7,
       "priority": 1,
       "allow": [
         "rock_small_01",
@@ -310,15 +442,15 @@
       "id": "rockSpot002",
       "type": "rock",
       "area": "rockHill",
-      "x": 60,
-      "y": 15,
+      "x": 38,
+      "y": 9,
       "priority": 1,
       "allow": [
         "rock_small_01",
         "rock_medium_01",
         "stump_01"
       ],
-      "maxCount": 4,
+      "maxCount": 6,
       "occupied": false,
       "anchor": {
         "x": 0.5,
@@ -333,341 +465,37 @@
       "description": "岩場の岩・切り株スポット2"
     },
     {
-      "id": "treeSpot002",
-      "type": "tree",
-      "area": "forestWest",
-      "x": 12,
-      "y": 32,
-      "priority": 1,
-      "allow": [
-        "tree_oak_01",
-        "tree_birch_01",
-        "tree_pine_01"
-      ],
-      "maxCount": 1,
-      "occupied": false,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "offset": {
-        "x": 0,
-        "y": 0
-      },
-      "radius": 0,
-      "stackable": false,
-      "description": "西の森の木スポット"
-    },
-    {
-      "id": "treeSpot003",
-      "type": "tree",
-      "area": "forestNorth",
-      "x": 75,
-      "y": 8,
-      "priority": 1,
-      "allow": [
-        "tree_oak_01",
-        "tree_birch_01",
-        "tree_pine_01"
-      ],
-      "maxCount": 1,
-      "occupied": false,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "offset": {
-        "x": 0,
-        "y": 0
-      },
-      "radius": 0,
-      "stackable": false,
-      "description": "北の森の木スポット2"
-    },
-    {
-      "id": "flowerSpot002",
-      "type": "flower",
-      "area": "flowerMeadow",
-      "x": 32,
-      "y": 30,
-      "priority": 1,
-      "allow": [
-        "flower_small_01",
-        "flower_patch_01"
-      ],
-      "maxCount": 6,
-      "occupied": false,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "offset": {
-        "x": 0,
-        "y": 0
-      },
-      "radius": 1,
-      "stackable": true,
-      "description": "花畑の花スポット2"
-    },
-    {
-      "id": "mushroomSpot002",
-      "type": "mushroom",
-      "area": "mushroomShade",
-      "x": 40,
-      "y": 20,
-      "priority": 1,
-      "allow": [
-        "mushroom_small_01",
-        "mushroom_patch_01"
-      ],
-      "maxCount": 5,
-      "occupied": false,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "offset": {
-        "x": 0,
-        "y": 0
-      },
-      "radius": 1,
-      "stackable": true,
-      "description": "木陰のきのこスポット2"
-    },
-    {
-      "id": "birdSpot002",
-      "type": "bird",
-      "area": "forestWest",
-      "x": 20,
-      "y": 24,
-      "priority": 1,
-      "allow": [
-        "bird_small_01"
-      ],
-      "maxCount": 2,
-      "occupied": false,
-      "anchor": {
-        "x": 0.5,
-        "y": 0.8
-      },
-      "offset": {
-        "x": 0,
-        "y": -4
-      },
-      "radius": 0,
-      "stackable": true,
-      "description": "西の森の小鳥スポット"
-    },
-    {
-      "id": "squirrelSpot002",
-      "type": "animal_ground",
-      "area": "forestNorth",
-      "x": 85,
-      "y": 10,
-      "priority": 1,
-      "allow": [
-        "squirrel_01",
-        "rabbit_01"
-      ],
-      "maxCount": 1,
-      "occupied": false,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "offset": {
-        "x": 0,
-        "y": 0
-      },
-      "radius": 1,
-      "stackable": false,
-      "description": "北の森の小動物スポット"
-    },
-    {
-      "id": "acornSpot002",
-      "type": "seed",
-      "area": "forestWest",
-      "x": 22,
-      "y": 45,
-      "priority": 1,
-      "allow": [
-        "acorn_01",
-        "berry_01",
-        "pinecone_01"
-      ],
-      "maxCount": 12,
-      "occupied": false,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "offset": {
-        "x": 0,
-        "y": 0
-      },
-      "radius": 1,
-      "stackable": true,
-      "description": "西の森の木の実スポット"
-    },
-    {
-      "id": "sparkleSpot002",
-      "type": "effect",
-      "area": "specialSpotArea",
-      "x": 45,
-      "y": 24,
-      "priority": 1,
-      "allow": [
-        "sparkle_small_01",
-        "glow_01",
-        "rainbow_01"
-      ],
-      "maxCount": 15,
-      "occupied": false,
-      "anchor": {
-        "x": 0.5,
-        "y": 0.5
-      },
-      "offset": {
-        "x": 0,
-        "y": 0
-      },
-      "radius": 2,
-      "stackable": true,
-      "description": "演出用スポット2"
-    },
-    {
-      "id": "grassSpot001",
-      "type": "grass",
-      "area": "forestWest",
-      "x": 20,
-      "y": 15,
-      "priority": 1,
-      "allow": [
-        "leaf_01",
-        "flower_small_01"
-      ],
-      "maxCount": 8,
-      "occupied": false,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "offset": {
-        "x": 0,
-        "y": 0
-      },
-      "radius": 2,
-      "stackable": true,
-      "description": "西の草むらスポット"
-    },
-    {
-      "id": "grassSpot002",
-      "type": "grass",
-      "area": "specialSpotArea",
-      "x": 48,
-      "y": 32,
-      "priority": 1,
-      "allow": [
-        "leaf_01",
-        "flower_small_01"
-      ],
-      "maxCount": 8,
-      "occupied": false,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "offset": {
-        "x": 0,
-        "y": 0
-      },
-      "radius": 2,
-      "stackable": true,
-      "description": "中央南の草むらスポット"
-    },
-    {
-      "id": "flowerSpot003",
-      "type": "flower",
-      "area": "specialSpotArea",
-      "x": 56,
-      "y": 26,
-      "priority": 1,
-      "allow": [
-        "flower_small_01",
-        "flower_patch_01"
-      ],
-      "maxCount": 6,
-      "occupied": false,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "offset": {
-        "x": 0,
-        "y": 0
-      },
-      "radius": 1,
-      "stackable": true,
-      "description": "シンボルツリー脇の花スポット"
-    },
-    {
-      "id": "treeSpot004",
-      "type": "tree",
-      "area": "forestWest",
-      "x": 28,
-      "y": 42,
-      "priority": 1,
-      "allow": [
-        "tree_oak_01",
-        "tree_birch_01",
-        "tree_pine_01"
-      ],
-      "maxCount": 1,
-      "occupied": false,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "offset": {
-        "x": 0,
-        "y": 0
-      },
-      "radius": 0,
-      "stackable": false,
-      "description": "南西の森の木スポット"
-    },
-    {
-      "id": "treeSpot005",
-      "type": "tree",
-      "area": "forestNorth",
-      "x": 68,
-      "y": 42,
-      "priority": 1,
-      "allow": [
-        "tree_oak_01",
-        "tree_birch_01",
-        "tree_pine_01"
-      ],
-      "maxCount": 1,
-      "occupied": false,
-      "anchor": {
-        "x": 0.5,
-        "y": 1.0
-      },
-      "offset": {
-        "x": 0,
-        "y": 0
-      },
-      "radius": 0,
-      "stackable": false,
-      "description": "南東の木スポット"
-    },
-    {
       "id": "rockSpot003",
       "type": "rock",
       "area": "pondWest",
-      "x": 68,
-      "y": 34,
+      "x": 44,
+      "y": 24,
+      "priority": 1,
+      "allow": [
+        "rock_small_01",
+        "rock_medium_01",
+        "stump_01"
+      ],
+      "maxCount": 6,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 1,
+      "stackable": true,
+      "description": "池のほとりの岩スポット"
+    },
+    {
+      "id": "rockSpot004",
+      "type": "rock",
+      "area": "pondWest",
+      "x": 37,
+      "y": 25,
       "priority": 1,
       "allow": [
         "rock_small_01",
@@ -686,21 +514,470 @@
       },
       "radius": 1,
       "stackable": true,
-      "description": "池のほとりの岩スポット"
+      "description": "池の西側の小岩スポット"
     },
     {
-      "id": "sparkleSpot003",
+      "id": "pondSpot001",
+      "type": "fish",
+      "area": "pondWest",
+      "x": 41,
+      "y": 22,
+      "priority": 1,
+      "allow": [
+        "fish_small_01"
+      ],
+      "maxCount": 8,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 2,
+      "stackable": true,
+      "description": "池の魚スポット"
+    },
+    {
+      "id": "frogSpot001",
+      "type": "animal_ground",
+      "area": "pondWest",
+      "x": 37,
+      "y": 24,
+      "priority": 2,
+      "allow": [
+        "frog_01"
+      ],
+      "maxCount": 3,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 1,
+      "stackable": true,
+      "description": "池の近くのカエルスポット"
+    },
+    {
+      "id": "birdSpot001",
+      "type": "bird",
+      "area": "forestNorth",
+      "x": 9,
+      "y": 4,
+      "priority": 1,
+      "allow": [
+        "bird_small_01"
+      ],
+      "maxCount": 3,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.8
+      },
+      "offset": {
+        "x": 0,
+        "y": -4
+      },
+      "radius": 0,
+      "stackable": true,
+      "description": "北西の小鳥スポット"
+    },
+    {
+      "id": "birdSpot002",
+      "type": "bird",
+      "area": "forestNorth",
+      "x": 21,
+      "y": 4,
+      "priority": 1,
+      "allow": [
+        "bird_small_01"
+      ],
+      "maxCount": 3,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.8
+      },
+      "offset": {
+        "x": 0,
+        "y": -4
+      },
+      "radius": 0,
+      "stackable": true,
+      "description": "北中央の小鳥スポット"
+    },
+    {
+      "id": "birdSpot003",
+      "type": "bird",
+      "area": "forestNorth",
+      "x": 49,
+      "y": 4,
+      "priority": 1,
+      "allow": [
+        "bird_small_01"
+      ],
+      "maxCount": 3,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.8
+      },
+      "offset": {
+        "x": 0,
+        "y": -4
+      },
+      "radius": 0,
+      "stackable": true,
+      "description": "北東の小鳥スポット"
+    },
+    {
+      "id": "birdSpot004",
+      "type": "bird",
+      "area": "forestWest",
+      "x": 7,
+      "y": 22,
+      "priority": 1,
+      "allow": [
+        "bird_small_01"
+      ],
+      "maxCount": 3,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.8
+      },
+      "offset": {
+        "x": 0,
+        "y": -4
+      },
+      "radius": 0,
+      "stackable": true,
+      "description": "西の森の小鳥スポット"
+    },
+    {
+      "id": "squirrelSpot001",
+      "type": "animal_ground",
+      "area": "forestWest",
+      "x": 12,
+      "y": 16,
+      "priority": 1,
+      "allow": [
+        "squirrel_01",
+        "rabbit_01"
+      ],
+      "maxCount": 2,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 1,
+      "stackable": true,
+      "description": "西の小動物スポット"
+    },
+    {
+      "id": "squirrelSpot002",
+      "type": "animal_ground",
+      "area": "forestNorth",
+      "x": 46,
+      "y": 8,
+      "priority": 1,
+      "allow": [
+        "squirrel_01",
+        "rabbit_01"
+      ],
+      "maxCount": 2,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 1,
+      "stackable": false,
+      "description": "北東の森の小動物スポット"
+    },
+    {
+      "id": "squirrelSpot003",
+      "type": "animal_ground",
+      "area": "forestWest",
+      "x": 14,
+      "y": 34,
+      "priority": 1,
+      "allow": [
+        "squirrel_01",
+        "rabbit_01"
+      ],
+      "maxCount": 2,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 1,
+      "stackable": false,
+      "description": "南西の森の小動物スポット"
+    },
+    {
+      "id": "insectSpot001",
+      "type": "insect",
+      "area": "flowerMeadow",
+      "x": 12,
+      "y": 22,
+      "priority": 1,
+      "allow": [
+        "bee_01",
+        "butterfly_01",
+        "dragonfly_01"
+      ],
+      "maxCount": 12,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 2,
+      "stackable": true,
+      "description": "花畑の虫スポット"
+    },
+    {
+      "id": "insectSpot002",
+      "type": "insect",
+      "area": "pondWest",
+      "x": 42,
+      "y": 20,
+      "priority": 1,
+      "allow": [
+        "bee_01",
+        "butterfly_01",
+        "dragonfly_01"
+      ],
+      "maxCount": 8,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 2,
+      "stackable": true,
+      "description": "池の虫・トンボスポット"
+    },
+    {
+      "id": "insectSpot003",
+      "type": "insect",
+      "area": "specialSpotArea",
+      "x": 28,
+      "y": 20,
+      "priority": 1,
+      "allow": [
+        "bee_01",
+        "butterfly_01",
+        "dragonfly_01"
+      ],
+      "maxCount": 8,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 2,
+      "stackable": true,
+      "description": "中央広場の虫スポット"
+    },
+    {
+      "id": "acornSpot001",
+      "type": "seed",
+      "area": "forestNorth",
+      "x": 10,
+      "y": 8,
+      "priority": 1,
+      "allow": [
+        "acorn_01",
+        "berry_01",
+        "pinecone_01"
+      ],
+      "maxCount": 15,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 2,
+      "stackable": true,
+      "description": "北の木の実散らばりスポット"
+    },
+    {
+      "id": "acornSpot002",
+      "type": "seed",
+      "area": "forestWest",
+      "x": 14,
+      "y": 32,
+      "priority": 1,
+      "allow": [
+        "acorn_01",
+        "berry_01",
+        "pinecone_01"
+      ],
+      "maxCount": 15,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 2,
+      "stackable": true,
+      "description": "西の森の木の実スポット"
+    },
+    {
+      "id": "acornSpot003",
+      "type": "seed",
+      "area": "pathCenter",
+      "x": 31,
+      "y": 36,
+      "priority": 1,
+      "allow": [
+        "acorn_01",
+        "berry_01",
+        "pinecone_01"
+      ],
+      "maxCount": 15,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 2,
+      "stackable": true,
+      "description": "南の小道沿い木の実スポット"
+    },
+    {
+      "id": "grassSpot001",
+      "type": "grass",
+      "area": "flowerMeadow",
+      "x": 14,
+      "y": 18,
+      "priority": 1,
+      "allow": [
+        "leaf_01",
+        "flower_small_01"
+      ],
+      "maxCount": 10,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 2,
+      "stackable": true,
+      "description": "花畑の草むらスポット"
+    },
+    {
+      "id": "grassSpot002",
+      "type": "grass",
+      "area": "specialSpotArea",
+      "x": 28,
+      "y": 28,
+      "priority": 1,
+      "allow": [
+        "leaf_01",
+        "flower_small_01"
+      ],
+      "maxCount": 10,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 2,
+      "stackable": true,
+      "description": "中央南の草むらスポット"
+    },
+    {
+      "id": "grassSpot003",
+      "type": "grass",
+      "area": "pathCenter",
+      "x": 24,
+      "y": 34,
+      "priority": 1,
+      "allow": [
+        "leaf_01",
+        "flower_small_01"
+      ],
+      "maxCount": 10,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 2,
+      "stackable": true,
+      "description": "小道の草むらスポット"
+    },
+    {
+      "id": "sparkleSpot001",
       "type": "effect",
       "area": "specialSpotArea",
-      "x": 50,
-      "y": 26,
+      "x": 29,
+      "y": 19,
       "priority": 1,
       "allow": [
         "sparkle_small_01",
-        "glow_01",
-        "rainbow_01"
+        "glow_01"
       ],
-      "maxCount": 20,
+      "maxCount": 25,
       "occupied": false,
       "anchor": {
         "x": 0.5,
@@ -711,6 +988,58 @@
         "y": 0
       },
       "radius": 3,
+      "stackable": true,
+      "description": "特別演出用スポット1"
+    },
+    {
+      "id": "sparkleSpot002",
+      "type": "effect",
+      "area": "specialSpotArea",
+      "x": 27,
+      "y": 25,
+      "priority": 1,
+      "allow": [
+        "sparkle_small_01",
+        "glow_01",
+        "rainbow_01"
+      ],
+      "maxCount": 25,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 3,
+      "stackable": true,
+      "description": "演出用スポット2"
+    },
+    {
+      "id": "sparkleSpot003",
+      "type": "effect",
+      "area": "specialSpotArea",
+      "x": 29,
+      "y": 23,
+      "priority": 1,
+      "allow": [
+        "sparkle_small_01",
+        "glow_01",
+        "rainbow_01"
+      ],
+      "maxCount": 30,
+      "occupied": false,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "offset": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 4,
       "stackable": true,
       "description": "シンボルツリー演出用スポット"
     }
