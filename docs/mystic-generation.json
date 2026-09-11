@@ -1,0 +1,159 @@
+{
+  "tool": "built-in image_gen",
+  "style": "Use case: illustration-story. Create ONE woodland game asset. The input image is the STYLE REFERENCE: match its delicate airy watercolor storybook illustration, fine warm brown pencil outlines, simplified graceful forms, light fresh green leaves, pale pink flowers, warm cream/gold accents, subtle magical gold specks. Avoid dense realistic gouache texture, photorealism, cartoon giant eyes, thick outlines, dark shadows. Soft and slightly mysterious, gentle, not flashy. Entire isolated object fully visible with margin. Transparent PNG background requested; no white rectangle or scene unless subject specifically requests a backdrop. No text. Subject: ",
+  "reference": "docs/reference/tree_symbol_original.png",
+  "jobs": [
+    {
+      "id": "grass_01",
+      "subject": "Small low oval tuft patch of meadow grass, sparse rounded blades, viewed slightly from above."
+    },
+    {
+      "id": "path_01",
+      "subject": "Single short softly curved segment of sandy woodland footpath with uneven edges, seen from above, isolated."
+    },
+    {
+      "id": "flower_small_01",
+      "subject": "One small pink wildflower with yellow center and two green leaves."
+    },
+    {
+      "id": "flower_patch_01",
+      "subject": "Small cluster of five pastel pink cream and pale yellow wildflowers with leaves."
+    },
+    {
+      "id": "mushroom_small_01",
+      "subject": "Single small red-capped mushroom with cream spots and short ivory stem."
+    },
+    {
+      "id": "mushroom_patch_01",
+      "subject": "Cluster of three small woodland mushrooms, russet and muted red caps, moss at their feet."
+    },
+    {
+      "id": "tree_birch_01",
+      "subject": "One slender full birch tree, distinctive white bark with dark marks and light green rounded leafy crown. Portrait."
+    },
+    {
+      "id": "tree_pine_01",
+      "subject": "One full evergreen pine tree, layered soft triangular foliage, visible warm brown trunk. Portrait."
+    },
+    {
+      "id": "stump_01",
+      "subject": "One low woodland tree stump, clear growth rings on top, tiny moss at base."
+    },
+    {
+      "id": "rock_small_01",
+      "subject": "One small smooth rounded warm gray stone with subtle moss."
+    },
+    {
+      "id": "rock_medium_01",
+      "subject": "Cluster of two medium rounded warm gray boulders with small moss accents."
+    },
+    {
+      "id": "pond_medium_01",
+      "subject": "Small oval tranquil blue-green pond with irregular bank of stones and reeds, visible water enclosed in bank, elevated top-down view, outside bank fully transparent. Landscape."
+    },
+    {
+      "id": "bridge_medium_01",
+      "subject": "Small rustic wooden footbridge, arched planks and short simple rails, viewed from side and slightly above, no river or land. Wide landscape."
+    },
+    {
+      "id": "bird_small_01",
+      "subject": "One friendly tiny round blue songbird with cream belly, full body and tiny feet, three-quarter view."
+    },
+    {
+      "id": "squirrel_01",
+      "subject": "One cute russet squirrel with large curled bushy tail, holding an acorn, three-quarter full body."
+    },
+    {
+      "id": "rabbit_01",
+      "subject": "One cute cream-colored sitting rabbit with long ears and small pink nose, three-quarter full body."
+    },
+    {
+      "id": "fish_small_01",
+      "subject": "One tiny friendly orange freshwater fish, side view, no water or bubbles."
+    },
+    {
+      "id": "frog_01",
+      "subject": "One cute small sage green frog sitting, full body, three-quarter view."
+    },
+    {
+      "id": "acorn_01",
+      "subject": "One honey brown acorn with textured cap, slightly tilted."
+    },
+    {
+      "id": "berry_01",
+      "subject": "Small cluster of three red woodland berries and one green leaf."
+    },
+    {
+      "id": "leaf_01",
+      "subject": "One fresh soft green oval leaf with delicate veins, slightly tilted."
+    },
+    {
+      "id": "sparkle_small_01",
+      "subject": "One small warm golden four-point magical sparkle painted with soft watercolor edges. All surrounding area transparent."
+    },
+    {
+      "id": "glow_01",
+      "subject": "Small cluster of warm pale golden firefly light dots, softly luminous watercolor specks, mostly transparent area between and around points, no dark background."
+    },
+    {
+      "id": "rainbow_01",
+      "subject": "One gentle pastel watercolor rainbow arch, seven subtle colored bands, no clouds or landscape, transparent under and outside arch, wide landscape."
+    },
+    {
+      "id": "bee_01",
+      "subject": "One cute tiny honeybee with golden yellow and brown stripes, two translucent wings, full body."
+    },
+    {
+      "id": "butterfly_01",
+      "subject": "One small butterfly with pastel peach and pale yellow wings open, slightly elevated frontal view."
+    },
+    {
+      "id": "dragonfly_01",
+      "subject": "One tiny teal dragonfly with four delicate translucent wings, top view."
+    },
+    {
+      "id": "pinecone_01",
+      "subject": "One small honey brown pinecone with rounded layered scales."
+    },
+    {
+      "id": "bench_01",
+      "subject": "One simple rustic wooden park bench, full object, three-quarter view."
+    },
+    {
+      "id": "campfire_01",
+      "subject": "One small friendly campfire, three short logs with soft orange golden flame and ring of stones, no surroundings."
+    },
+    {
+      "id": "lantern_01",
+      "subject": "One small rustic woodland lantern, brass frame with softly glowing cream glass, full object."
+    },
+    {
+      "id": "tree_oak_01",
+      "subject": "A graceful oak tree with an open branching silhouette and large simple leaves, a few acorns."
+    },
+    {
+      "id": "tree_symbol_stage_01",
+      "subject": "Growth stage 1: a tiny newly sprouted seedling, two large green leaves, a short delicate stem with one tiny golden glint, just a few specks of magic. No branches yet."
+    },
+    {
+      "id": "tree_symbol_stage_02",
+      "subject": "Growth stage 2: a small young sapling, slender golden brown stem, two forked twigs, six large green leaves, faint golden vine motif beginning on trunk, a few floating tiny gold lights."
+    },
+    {
+      "id": "tree_symbol_stage_03",
+      "subject": "Growth stage 3: a young magical tree, slim winding trunk with three branches, ten large green leaves and a few unopened pink flower buds, gentle gold vine motifs and a few gold stars."
+    },
+    {
+      "id": "tree_symbol_stage_04",
+      "subject": "Growth stage 4: a medium magical tree, graceful branching trunk with clear gold spiral and leaf motifs, many large individual green leaves and just a few open pink flowers, a soft gold aura and floating sparks. Less developed than the reference."
+    },
+    {
+      "id": "tree_symbol_01",
+      "subject": "Growth stage 5, fully grown symbol tree. Recreate the reference tree's distinctive graceful winding trunk, golden spiral and leaf markings, sparse open airy branching silhouette with large individual green leaves and pink blossoms, floating gold star glints and curls, a soft ethereal golden aura. Keep the original identity very closely, full tree including tiny roots and little ground patch. NOT a bushy oak canopy."
+    },
+    {
+      "id": "forest-clearing-v2",
+      "subject": "Wide 16:9 woodland clearing backdrop for the game. A large EMPTY softly painted pale sage meadow in central 70 percent for game objects. Frame only edges with delicate trees, large individual green leaves, tiny pink blossoms, warm gold glints. Dreamy luminous pastel watercolor like reference, airy simple children's illustration with abundant breathing room, no central tree or central focal object. Background landscape may be opaque, no interface, no words."
+    }
+  ]
+}

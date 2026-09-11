@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>コツコツの森・素材一覧</title>
+<style>body{margin:0;padding:32px;font:16px system-ui;color:#344638;background:#faf8ef}h1{font-size:26px}button{padding:10px 18px;margin:4px;border:1px solid #bbcaab;border-radius:12px;background:#fff;cursor:pointer}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px}.card{padding:12px;border:1px solid #dce2cb;border-radius:14px;background:#fff}.picture{height:200px;display:flex;align-items:end;justify-content:center;background:var(--preview-bg,#e1eaca);border-radius:8px}.picture img{max-width:100%;max-height:100%;object-fit:contain}.stages .picture{height:260px}.card p{margin:8px 0;font-size:14px}.card a{font-size:11px;color:#436751;overflow-wrap:anywhere}h2{margin-top:32px;font-size:21px}</style>
+<h1>コツコツの森・素材一覧</h1><p>以前のシンボルツリーを基準にした、水彩と金色の光のシリーズ。</p>
+<div aria-label="確認用背景"><button data-bg="#e1eaca">草色</button><button data-bg="#fff">白</button><button data-bg="#26382f">暗い緑</button></div>
+<h2>シンボルツリーの成長</h2><div id="stages" class="grid stages"></div>
+<h2>森の素材</h2><div id="assets" class="grid"></div>
+<script type="module">
+import { TREE_GROWTH_STAGES } from '../js/tree-growth.js';
+const card=(name,file,extra='')=>`<article class="card"><div class="picture"><img src="../assets/${file}" alt="${name}"></div><p>${name} ${extra}</p><a href="../assets/${file}" download>${file}</a></article>`;
+document.querySelector('#stages').innerHTML=TREE_GROWTH_STAGES.map(s=>card(s.name,s.image,`${s.min}%〜`)).join('');
+const data=await fetch('../data/assets.json').then(r=>r.json());
+document.querySelector('#assets').innerHTML=data.assets.map(a=>card(a.name,a.image)).join('')+[['ベンチ','bench_01.png'],['たき火','campfire_01.png'],['ランタン','lantern_01.png'],['森の背景','forest-clearing-v2.png']].map(([n,f])=>card(n,f)).join('');
+document.querySelectorAll('[data-bg]').forEach(b=>b.onclick=()=>document.body.style.setProperty('--preview-bg',b.dataset.bg));
+</script></html>

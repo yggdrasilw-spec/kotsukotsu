@@ -1,4 +1,5 @@
 import { computeProgressPercent } from './core-runtime.js';
+import { symbolTreeStage } from './tree-growth.js';
 
 function escapeHtml(text) {
   return String(text ?? '')
@@ -49,15 +50,6 @@ function assetPosition(item, asset, cellSize, scale = 1) {
     width,
     height
   };
-}
-
-// (v25) 中心のシンボルツリー専用の成長スケール。
-// 森の開始時(進行度0%)は他の小物と同じグリッド1マス分の苗木として置かれ、
-// 進行度が進むほど少しずつ大きくなり、完成(100%)時には森でいちばん大きい木
-// (針葉樹: 4×5マス)よりも一回り大きい、6倍サイズのシンボルツリーになる。
-function symbolTreeScale(progressPercent) {
-  const p = Math.max(0, Math.min(100, Number(progressPercent) || 0));
-  return 6 + (p / 100) * 5;
 }
 
 // ビューポートカリング: ワールド座標上の矩形が、カメラの可視範囲と
@@ -231,9 +223,10 @@ export function createForestRenderer({
       
       const asset = assetById.get(item.assetId) || null;
       const isSymbolTree = Boolean(item.isSymbolTree) || item.spotId === 'symbolTreeSpot';
-      const scale = isSymbolTree ? symbolTreeScale(progressPercent) : 1;
+      const treeStage = isSymbolTree ? symbolTreeStage(progressPercent) : null;
+      const scale = treeStage?.scale || 1;
       const pos = assetPosition(item, asset, camera.cellSize, scale);
-      const { image } = resolveVisual(asset);
+      const { image } = resolveVisual(treeStage ? { ...asset, image: treeStage.image } : asset);
       const className = `forest-node forest-node--asset forest-node--${escapeHtml(asset?.type || 'unknown')}${isSymbolTree ? ' forest-node--symbol-tree' : ''}`;
       
       let el = placedNodesMap.get(placedId);
@@ -251,7 +244,9 @@ export function createForestRenderer({
       if (el.className !== className) el.className = className;
       el.dataset.id = `placed-${index}`;
       el.dataset.layer = escapeHtml(asset?.layer || 'asset');
-      el.title = escapeHtml(asset?.name || item.assetId || 'asset');
+      el.title = escapeHtml(treeStage ? `シンボルツリー：${treeStage.name}` : (asset?.name || item.assetId || 'asset'));
+      if (treeStage) el.dataset.growthStage = String(treeStage.min);
+      else delete el.dataset.growthStage;
       el.dataset.placedId = escapeHtml(item.placedId || '');
       el.dataset.assetId = escapeHtml(item.assetId);
 
