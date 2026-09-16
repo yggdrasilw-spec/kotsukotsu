@@ -1,10 +1,11 @@
-import { createGrowthView } from './growth-view.js?v=child-20260910e';
+import { createGrowthView } from './growth-view.js?v=forest-expansion-1';
+import { createExpandingForest } from './forest-expansion.js';
 import { CONFIG } from './config.js?v=child-20260910e';
 import { createForestCoreFromData } from './core-runtime.js?v=child-20260910e';
-import { Camera } from './camera.js?v=child-20260910e';
-import { PlacementManager } from './placement.js?v=child-20260910e';
+import { Camera } from './camera.js?v=forest-expansion-1';
+import { PlacementManager } from './placement.js?v=forest-expansion-2';
 import { createForestRenderer } from './render.js?v=child-20260910e';
-import { InteractionController } from './interaction.js?v=child-20260910e';
+import { InteractionController } from './interaction.js?v=forest-expansion-2';
 import { loadForestBundle } from './data-loader.js?v=child-20260910e';
 import { BadgeManager } from './badge.js?v=child-20260910e';
 import { AudioManager } from './audio.js?v=child-20260910e';
@@ -269,15 +270,15 @@ async function bootstrap() {
   }
   applyDynamicMinZoom();
 
-  if (savedSettings.gardenViewVersion === 4 && Number.isFinite(savedSettings.cameraX) && Number.isFinite(savedSettings.cameraY)) {
+  if (savedSettings.gardenViewVersion === 5 && Number.isFinite(savedSettings.cameraX) && Number.isFinite(savedSettings.cameraY)) {
     camera.x = savedSettings.cameraX;
     camera.y = savedSettings.cameraY;
     camera.zoom = savedSettings.zoom || camera.zoom;
     camera.clampToBounds();
   } else {
-    camera.zoom = Math.min(camera.viewportWidth / (32 * 112), camera.viewportHeight / (23 * 112));
+    camera.zoom = Math.min(camera.viewportWidth / (24 * 112), camera.viewportHeight / (20 * 112));
     camera.centerOnCell(map.width / 2, map.height / 2 - 1);
-    core.state.settings.gardenViewVersion = 4;
+    core.state.settings.gardenViewVersion = 5;
   }
 
   Object.assign(core.state.settings, { cameraX: camera.x, cameraY: camera.y, zoom: camera.zoom });
@@ -362,6 +363,8 @@ async function bootstrap() {
   }
 
   let logExpanded = false;
+  const expandingForest = createExpandingForest({ world: worldEl, camera, core, map });
+  placement.canPlaceCell = expandingForest.canPlace;
   const growthView = createGrowthView({ core, camera, viewport: viewportEl });
   let pendingStatPulse = false;
   const pendingGoals = new Set();
@@ -393,6 +396,7 @@ async function bootstrap() {
 
     const view = renderer.render(renderState);
     growthView.update();
+    expandingForest.update();
     setHTML('statusPanel', view.statusHtml);
     setHTML('eventLog', view.logHtml);
     setHTML('badgePanel', view.badgeHtml);
@@ -1204,13 +1208,8 @@ async function bootstrap() {
     refresh();
   });
   bindButton('btnFitView', () => {
-    const fitZoom = computeFitZoom();
-    const center = cameraTopLeftToCenterOn(
-      (map.width * camera.cellSize) / 2,
-      (map.height * camera.cellSize) / 2,
-      fitZoom
-    );
-    animateCamera({ x: center.x, y: center.y, zoom: fitZoom }, 550);
+    expandingForest.fit();
+    refresh();
   });
 
   bindButton('btnSeasonSpring', () => { core.setSeason('spring'); refresh(); });
@@ -1542,6 +1541,14 @@ async function bootstrap() {
       );
 
       if (isOverForest) {
+        const dropWorld = camera.screenToWorld(event.clientX-vRect.left,event.clientY-vRect.top);
+        const dropCell = camera.worldToCell(dropWorld.x,dropWorld.y);
+        const dropAsset = assets.find(a=>a.id===item.assetId);
+        const dropSpot = placement.findSpotForAsset(dropAsset,dropCell.x,dropCell.y,id=>core.isSpotAvailable(id));
+        if (!expandingForest.canPlace(dropCell.x,dropCell.y) || (dropSpot && !expandingForest.canPlace(dropSpot.x,dropSpot.y))) {
+          toast('霧がはれた草地に置いてね');
+          return;
+        }
         const personalPoints = Number(core.getState().personalPoints || 0);
         const currentQty = core.getAssetQuantity(item.assetId);
 

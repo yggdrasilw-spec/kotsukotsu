@@ -7,6 +7,7 @@ export class PlacementManager {
     this.mode = 'pan';
     this.showGrid = false;
     this.showSpots = true;
+    this.canPlaceCell = () => true;
   }
 
   setAssets(assets) {
@@ -82,6 +83,7 @@ export class PlacementManager {
   }
 
   placeAtCell(core, assetId, cellX, cellY) {
+    if (!this.canPlaceCell(cellX,cellY)) return {ok:false,reason:'unexplored'};
     const asset = this.assets.find((a) => a.id === assetId);
     if (!asset) {
       return { ok: false, reason: 'asset_not_found' };
@@ -101,6 +103,7 @@ export class PlacementManager {
       targetX = spot.x + offset.x;
       targetY = spot.y + offset.y;
     }
+    if (!this.canPlaceCell(targetX,targetY)) return {ok:false,reason:'unexplored'};
     const result = core.placeAsset(assetId, spot ? spot.id : null, targetX, targetY);
     if (!result.ok) {
       return { ok: false, reason: result.reason || 'place_failed' };

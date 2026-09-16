@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict';
+import { expansionArea, isOpenGround } from '../js/forest-expansion.js';
+import { PlacementManager } from '../js/placement.js';
+import { Camera } from '../js/camera.js';
+const initial=expansionArea(0),grown=expansionArea(100);
+assert.deepEqual(expansionArea(-20),initial);
+assert.deepEqual(expansionArea(120),grown);
+for(let p=1;p<=100;p++){
+ const a=expansionArea(p-1),b=expansionArea(p);
+ assert.ok(b.x-b.rx<=a.x-a.rx && b.x+b.rx>=a.x+a.rx);
+ assert.ok(b.y-b.ry<=a.y-a.ry && b.y+b.ry>=a.y+a.ry);
+}
+const camera=new Camera({minZoom:.1});camera.setViewport(600,400);
+camera.explorationBounds={left:1000,right:2000,top:800,bottom:1600};
+camera.panBy(100000,100000);assert.equal(camera.x,1000);assert.equal(camera.y,800);
+camera.panBy(-100000,-100000);assert.equal(camera.x,1400);assert.equal(camera.y,1200);
+camera.setZoom(.1);assert.equal(camera.x+300/camera.zoom,1500);assert.equal(camera.y+200/camera.zoom,1200);
+const world=camera.screenToWorld(130,90);assert.deepEqual(camera.worldToScreen(world.x,world.y),{x:130,y:90});
+console.log('PASS: continuous expansion, clamped progress, camera limits, centered wide views and shared coordinates');
+assert.equal(isOpenGround(29*112,23*112,0),true);
+assert.equal(isOpenGround(3*112,3*112,0),false);
+assert.equal(isOpenGround(NaN,0,50),false);
+assert.equal(isOpenGround(44*112,23*112,0),false);
+assert.equal(isOpenGround(44*112,23*112,100),true);
+assert.equal(isOpenGround(3*112,3*112,0,[{x:3,y:3}]),true);
+let writes=0;
+const core={canPlaceAsset:()=>true,isSpotAvailable:()=>true,placeAsset:()=>{writes++;return {ok:true};}};
+const placement=new PlacementManager({assets:[{id:'flower',type:'flower'}],spots:[]});
+placement.canPlaceCell=(x,y)=>isOpenGround(x*112,y*112,0);
+assert.equal(placement.placeAtCell(core,'flower',3,3).reason,'unexplored');
+assert.equal(writes,0,'Hidden placements cannot consume inventory');
+assert.equal(placement.placeAtCell(core,'flower',29,23).ok,true);
+placement.setSpots([{id:'hidden',type:'flower',x:3,y:3,radius:100}]);
+assert.equal(placement.placeAtCell(core,'flower',29,23).reason,'unexplored');
+assert.equal(writes,1,'Snapping into fog cannot consume inventory');
+console.log('PASS: revealed placement, legacy access, hidden placement and hidden snap preserve inventory');

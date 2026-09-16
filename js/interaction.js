@@ -165,7 +165,9 @@ export class InteractionController {
       this.onDirty();
       return result;
     }
-    if (result.reason === 'not_owned') {
+    if (result.reason === 'unexplored') {
+      this.onToast('霧がはれた草地に置いてね。みんなのがんばりで森が広がるよ');
+    } else if (result.reason === 'not_owned') {
       this.onToast('在庫がありません。ポイントで購入してね');
     } else if (result.reason === 'spot_full') {
       this.onToast('この場所はもういっぱいです');

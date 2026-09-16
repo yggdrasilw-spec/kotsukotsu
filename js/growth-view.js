@@ -34,7 +34,7 @@ export function createGrowthView({ core, camera, viewport }) {
     document.getElementById('gardenMode').textContent = core.sharedMode ? 'みんなの もり' : 'れんしゅうの もり';
   }
   function celebrate(origin, text = 'あなたの「できた！」で おはなが さいたよ') {
-    camera.zoom = Math.min(viewport.clientWidth / (32 * 112), viewport.clientHeight / (23 * 112));
+    camera.zoom = camera.clampZoom(Math.min(viewport.clientWidth / (24 * camera.cellSize), viewport.clientHeight / (20 * camera.cellSize)));
     camera.centerOnCell(29, 22);
     const status = document.getElementById('growthMessage');
     status.textContent = text;

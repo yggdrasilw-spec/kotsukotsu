@@ -73,8 +73,16 @@ export class Camera {
     const visibleHeight = this.viewportHeight / this.zoom;
     const maxX = Math.max(0, worldWidth - visibleWidth);
     const maxY = Math.max(0, worldHeight - visibleHeight);
-    this.x = Math.min(maxX, Math.max(0, this.x));
-    this.y = Math.min(maxY, Math.max(0, this.y));
+    const b = this.explorationBounds;
+    if (b) {
+      const clampAxis = (value, start, end, visible) => end-start <= visible
+        ? (start+end-visible)/2 : Math.min(end-visible,Math.max(start,value));
+      this.x = clampAxis(this.x,b.left,b.right,visibleWidth);
+      this.y = clampAxis(this.y,b.top,b.bottom,visibleHeight);
+    } else {
+      this.x = Math.min(maxX, Math.max(0, this.x));
+      this.y = Math.min(maxY, Math.max(0, this.y));
+    }
   }
 
   screenToWorld(screenX, screenY) {
