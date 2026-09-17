@@ -1,4 +1,4 @@
-import { FirebaseClient } from './firebase-client.js';
+import { FirebaseClient } from './firebase-client.js?v=teacher-overview-1';
 
 const LOCAL_KEY = 'kokotsu_teacher_info_v1';
 
@@ -87,7 +87,7 @@ function renderStudentRoster(roster, { attentionOnly = false } = {}) {
   });
   const attentionTotal = counts.needs_support + counts.never_opened + counts.stalled + counts.not_opened_today + counts.no_goals;
 
-  byId('rosterSummary').innerHTML = attentionTotal
+  byId('rosterSummary').innerHTML = !list.length ? '<span class="roster-chip">参加児童 0人</span>' : attentionTotal
     ? `
       <span class="roster-chip roster-chip--support">🚩 要支援 ${counts.needs_support + counts.never_opened}人</span>
       <span class="roster-chip roster-chip--stalled">😐 停滞 ${counts.stalled}人</span>
@@ -127,7 +127,9 @@ function renderStudentRoster(roster, { attentionOnly = false } = {}) {
           <span>🔥 連続${entry.loginStreak}日</span>
           <span>🕘 最終アクセス: ${escapeHtml(rosterLastSeenLabel(entry))}</span>
           <span>🎯 ${escapeHtml(goalsLabel)}</span>
+          <span>累計 ${Number(entry.lifetimePoints)||0} P ／ 所持 ${Number(entry.personalPoints)||0} P</span>
         </div>
+        <ul class="teacher-goals">${(entry.goals||[]).map(g=>`<li>${escapeHtml(g.title)}（1日 ${Number(g.targetCount)||1} 回）</li>`).join('')}</ul>
       </div>
     `;
   }).join('');
@@ -188,69 +190,14 @@ async function main() {
   let info = loadInfo();
   let studentsMap = new Map();
   let lastRoster = [];
-
-  const connectView = byId('connectView');
-  const dashboardView = byId('dashboardView');
-
-  function setView(configured) {
-    connectView.style.display = configured ? 'none' : 'grid';
-    dashboardView.style.display = configured ? 'grid' : 'none';
-  }
-
-  function startRealtimeListeners(classCode) {
-    firebaseClient.cleanup();
-
-    // (1) クラス情報・森の進行度
-    firebaseClient.listenClass({
-      classCode,
-      onData: (data) => {
-        if (!data) return;
-        showMessage('');
-        const classInfo = data.classInfo || {};
-        const forestState = data.forestState || {};
-
-        byId('classCodeDisplay').textContent = classInfo.classCode || classCode;
-        byId('approvalModeSelect').value = classInfo.goalApprovalMode === 'teacher' ? 'teacher' : 'self';
-        byId('maxGoalsInput').value = classInfo.maxGoals || 3;
-        byId('clearPointSettingInput').value = classInfo.clearPoint || 1000;
-        byId('stalledDaysInput').value = classInfo.stalledDays || 3;
-        byId('supportDaysInput').value = classInfo.supportDays || 2;
-
-        renderForestRecord({ forestState: { ...forestState, clearPoint: classInfo.clearPoint } });
-      },
-      onError: (err) => {
-        console.warn('[teacher] listenClass error:', err);
-      }
-    });
-
-    // (2) 児童一覧名簿ダッシュボード
-    firebaseClient.listenStudentsRoster({
-      classCode,
-      onData: (roster) => {
-        lastRoster = roster || [];
-        renderStudentRoster(lastRoster, { attentionOnly: byId('rosterFilterToggle').checked });
-      },
-      onError: (err) => {
-        console.warn('[teacher] listenStudentsRoster error:', err);
-      }
-    });
-
-    // (3) 児童名簿（名前解決用）
-    firebaseClient.listenStudents({
-      classCode,
-      onData: (students) => {
-        studentsMap = new Map((students || []).map(s => [s.studentId, s.nickname || 'だれか']));
-      },
-      onError: (err) => {
-        console.warn('[teacher] listenStudents error:', err);
-      }
-    });
-
-    // (4) 承認待ちキュー
-    firebaseClient.listenApprovalQueue({
-      classCode,
-      onData: (pending) => {
-        const list = Array.isArray(pending) ? pending : [];
+  let classState = {};
+  let pendingCount = 0;
+  let forestClassData=null, forestPlaced=[];
+  function sendForest(){byId('classForestFrame')?.contentWindow?.postMessage({type:'class-forest',classCode:info?.classCode||'',classData:forestClassData,placed:forestPlaced},location.origin);}
+  window.addEventListener('message',event=>{if(event.origin===location.origin && event.source===byId('classForestFrame')?.contentWindow && event.data?.type==='class-forest-ready')sendForest();});
+  let pendingEntries = [];
+  function renderPending() {
+    const list=pendingEntries;
         byId('approvalList').innerHTML = list.length
           ? list.map((entry) => {
               const studentName = studentsMap.get(entry.studentId) || 'だれか';
@@ -266,9 +213,102 @@ async function main() {
               `;
             }).join('')
           : '<p class="muted">承認待ちの目標はありません。</p>';
+  }
+
+  function renderOverview() {
+    const stats=[['参加児童',`${lastRoster.length}人`],['今日の達成',`${lastRoster.reduce((n,s)=>n+(Number(s.todayAchieved)||0),0)}件`],['承認待ち',`${pendingCount}件`],['クラスポイント',`${Number(classState.classPoints)||0} P`],['森の世代',`${Number(classState.forestGeneration)||1}代目`]];
+    byId('classOverview').innerHTML=stats.map(([label,value])=>`<div class="overview-stat"><span>${label}</span><strong>${value}</strong></div>`).join('');
+  }
+  function reportError(section,err) {
+    showMessage(`${section}を取得できませんでした。クラスコード、通信状態、Firebaseの読み取り権限を確認して「更新」を押してください。`);
+    byId('connectionStatus').textContent='一部の情報を取得できていません';
+    console.warn(`[teacher] ${section}`,err);
+  }
+
+  const connectView = byId('connectView');
+  const dashboardView = byId('dashboardView');
+
+  function setView(configured) {
+    connectView.style.display = configured ? 'none' : 'grid';
+    dashboardView.style.display = configured ? 'grid' : 'none';
+  }
+
+  function startRealtimeListeners(classCode) {
+    firebaseClient.cleanup();
+    forestClassData=null;forestPlaced=[];sendForest();
+    firebaseClient.listenPlacedAssets({classCode,onData:placed=>{forestPlaced=placed||[];sendForest();},onError:err=>reportError('森の配置',err)});
+    lastRoster=[];studentsMap=new Map();classState={};pendingCount=0;pendingEntries=[];
+    byId('classCodeDisplay').textContent=classCode;
+    byId('rosterSummary').replaceChildren();
+    showMessage('');
+    byId('connectionStatus').textContent='クラス情報を読み込み中…';
+    byId('classOverview').textContent='読み込み中…';
+    byId('studentRoster').textContent='読み込み中…';
+    byId('approvalList').textContent='読み込み中…';
+    byId('activityList').textContent='読み込み中…';
+    byId('forestNow').textContent='読み込み中…';
+    byId('forestHistoryList').replaceChildren();
+
+    // (1) クラス情報・森の進行度
+    firebaseClient.listenClass({
+      classCode,
+      onData: (data) => {
+        if (!data) { reportError('クラス情報',new Error('Class not found')); return; }
+        const classInfo = data.classInfo || {};
+        const forestState = data.forestState || {};
+        forestClassData=data;sendForest();
+        classState=forestState;renderOverview();
+        byId('connectionStatus').textContent=`クラス ${classCode} に接続中・自動更新`;
+
+        byId('classCodeDisplay').textContent = classInfo.classCode || classCode;
+        byId('approvalModeSelect').value = classInfo.goalApprovalMode === 'teacher' ? 'teacher' : 'self';
+        byId('maxGoalsInput').value = classInfo.maxGoals || 3;
+        byId('clearPointSettingInput').value = classInfo.clearPoint || 1000;
+        byId('stalledDaysInput').value = classInfo.stalledDays || 3;
+        byId('supportDaysInput').value = classInfo.supportDays || 2;
+
+        renderForestRecord({ forestState: { ...forestState, clearPoint: classInfo.clearPoint } });
       },
       onError: (err) => {
-        console.warn('[teacher] listenApprovalQueue error:', err);
+        reportError('クラス情報',err);
+      }
+    });
+
+    // (2) 児童一覧名簿ダッシュボード
+    firebaseClient.listenStudentsRoster({
+      classCode,
+      onData: (roster) => {
+        lastRoster = roster || [];
+        renderOverview();
+        renderStudentRoster(lastRoster, { attentionOnly: byId('rosterFilterToggle').checked });
+      },
+      onError: (err) => {
+        reportError('児童の様子',err);
+      }
+    });
+
+    // (3) 児童名簿（名前解決用）
+    firebaseClient.listenStudents({
+      classCode,
+      onData: (students) => {
+        studentsMap = new Map((students || []).map(s => [s.studentId, s.nickname || 'だれか']));
+        renderPending();
+      },
+      onError: (err) => {
+        reportError('児童名簿',err);
+      }
+    });
+
+    // (4) 承認待ちキュー
+    firebaseClient.listenApprovalQueue({
+      classCode,
+      onData: (pending) => {
+        const list = Array.isArray(pending) ? pending : [];
+        pendingCount=list.length;renderOverview();
+        pendingEntries=list;renderPending();
+      },
+      onError: (err) => {
+        reportError('承認待ち',err);
       }
     });
 
@@ -282,7 +322,7 @@ async function main() {
           : '<p class="muted">まだ記録がありません。</p>';
       },
       onError: (err) => {
-        console.warn('[teacher] listenActivityLog error:', err);
+        reportError('活動ログ',err);
       }
     });
   }
@@ -326,7 +366,9 @@ async function main() {
       return;
     }
 
-    const check = await firebaseClient.getClass({ classCode });
+    let check;
+    try { check = await firebaseClient.getClass({ classCode }); }
+    catch(err) { reportError('クラス情報',err); return; }
     if (!check.ok) {
       showMessage('クラスが見つかりませんでした。クラスコードを確認してください。');
       return;
@@ -338,10 +380,13 @@ async function main() {
     startRealtimeListeners(classCode);
   });
 
+  byId('joinCodeInput').addEventListener('keydown',event=>{if(event.key==='Enter')byId('btnManageClass').click();});
+
   // 切断
   byId('btnDisconnect').addEventListener('click', () => {
     firebaseClient.cleanup();
     info = null;
+    forestClassData=null;forestPlaced=[];sendForest();
     clearInfo();
     setView(false);
   });
@@ -407,13 +452,13 @@ async function main() {
     }
   });
 
-  if (info?.classCode) {
+  if (info?.classCode && firebaseClient.isReady()) {
     setView(true);
     startRealtimeListeners(info.classCode);
   } else {
     setView(false);
+    if (!firebaseClient.isReady()) showMessage('Firebaseに接続できません。設定と通信状態を確認して再読み込みしてください。');
   }
 }
 
-main();
-
+main().catch(err=>showMessage(`先生画面を起動できませんでした。通信状態とFirebase設定を確認してください。\n${err.message}`));

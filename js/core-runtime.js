@@ -756,8 +756,8 @@ function categoryForAsset(asset) {
 }
 
 export class ForestCore {
-  constructor({ assets = [], spots = [], shopItems = [], storageKey } = {}) {
-    this.saveManager = new SaveManager(storageKey);
+  constructor({ assets = [], spots = [], shopItems = [], storageKey, saveManager } = {}) {
+    this.saveManager = saveManager || new SaveManager(storageKey);
     this.state = this.saveManager.load();
     this.assets = assets;
     this.spots = spots;

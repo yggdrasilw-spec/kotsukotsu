@@ -1,0 +1,5 @@
+<!doctype html><meta charset="utf-8"><title>提示画面のテスト用データ</title><style>body{margin:0}iframe{width:100%;height:90vh;border:0}</style><button id="grow">成長60%のテスト</button><iframe src="../class-forest.html" allow="fullscreen"></iframe><script>
+const frame=document.querySelector('iframe');let points=0;
+function send(){frame.contentWindow.postMessage({type:'class-forest',classCode:'DEMO',classData:{classInfo:{clearPoint:1000},forestState:{classPoints:points,forestGeneration:1}},placed:[]},location.origin);}
+window.addEventListener('message',e=>{if(e.origin===location.origin&&e.source===frame.contentWindow&&e.data?.type==='class-forest-ready')send();});document.querySelector('button').onclick=()=>{points=600;send();};
+</script>

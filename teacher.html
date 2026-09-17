@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>コツコツの森 - 先生用ページ</title>
   <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="./teacher.css" />
 </head>
 <body>
   <div class="teacher-shell">
@@ -14,7 +15,7 @@
         <div class="brand__sub">先生用ページ</div>
       </div>
       <div class="topbar__actions">
-        <a href="./index.html" class="link-quiet">← 児童の画面へ</a>
+        <span class="link-quiet">クラスのようす・目標・承認</span>
       </div>
     </header>
 
@@ -53,6 +54,8 @@
 
     <!-- 接続済みのときだけ表示: 設定と承認 -->
     <div id="dashboardView" class="teacher-layout" style="display:none;">
+      <section class="panel teacher-overview"><h2>教室に映すクラスの森</h2><p>森・参加用コード・成長を大きく表示します。個人の目標や承認一覧は表示しません。</p><iframe id="classForestFrame" title="教室提示用のクラスの森" src="./class-forest.html" allow="fullscreen" style="width:100%;height:620px;border:0;border-radius:18px"></iframe></section>
+      <section class="panel teacher-overview"><h2>クラスの総覧</h2><p id="connectionStatus" role="status">接続中…</p><div id="classOverview" class="overview-grid"></div></section>
       <section class="panel">
         <h2>クラスコード（児童に伝えてください）</h2>
         <div class="class-code-display" id="classCodeDisplay">------</div>
@@ -126,6 +129,6 @@
     </div>
   </div>
 
-  <script type="module" src="./js/teacher.js"></script>
+  <script type="module" src="./js/teacher.js?v=overview-1"></script>
 </body>
 </html>

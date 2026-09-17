@@ -1,0 +1,11 @@
+body { background:#f4f6ef; }
+.teacher-shell { max-width:1500px;margin:auto; }
+.teacher-shell .topbar { background:#fffdf7; }
+.teacher-overview { grid-column:1/-1; }
+.overview-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px; }
+.overview-stat { background:#edf3e7;border-radius:14px;padding:16px;display:grid;gap:8px; }
+.overview-stat strong { font-size:26px;color:#345939; }
+.teacher-goals { margin:10px 0 0;padding-left:22px;line-height:1.8; }
+#connectionStatus { color:#65725e;font-size:14px;margin-bottom:16px; }
+.teacher-shell input,.teacher-shell select { min-height:44px; }
+.teacher-shell .app-message { white-space:pre-wrap; }

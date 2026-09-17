@@ -190,12 +190,14 @@ export class FirebaseClient {
   listenApprovalQueue({ classCode, onData, onError }) {
     if (!this.db || !classCode) return () => {};
     const colRef = collection(this.db, 'classes', classCode, 'goalLog');
-    const q = query(colRef, where('status', '==', 'pending'), orderBy('requestedAt', 'asc'));
+    // Filter on one field; sort locally so a missing composite index cannot hide the queue.
+    const q = query(colRef, where('status', '==', 'pending'));
     const unsub = onSnapshot(q, (snapshot) => {
       const list = [];
       snapshot.forEach((d) => {
         list.push({ logId: d.id, ...d.data() });
       });
+      list.sort((a,b)=>String(a.requestedAt||'').localeCompare(String(b.requestedAt||'')));
       onData(list);
     }, onError);
     this.unsubscribers.push(unsub);
@@ -272,6 +274,9 @@ export class FirebaseClient {
           loginStreak,
           daysSinceLogin,
           activeGoalsCount,
+          goals: activeGoals.filter(g=>g.studentId===s.studentId).map(g=>({title:g.title || '',targetCount:Number(g.targetCount)||1})),
+          personalPoints: Number(s.personalPoints)||0,
+          lifetimePoints: Number(s.lifetimePoints)||0,
           todayAchieved,
           todayPending,
           status
